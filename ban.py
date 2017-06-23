@@ -50,7 +50,7 @@ class ban(minqlx.Plugin):
         # List of players playing that could potentially be considered leavers.
         self.players_start = []
         self.pending_warnings = {}
-    
+
     def handle_player_connect(self, player):
         status = self.leave_status(player.steam_id)
         # Check if a player has been banned for leaving, if we're doing that.
@@ -59,7 +59,7 @@ class ban(minqlx.Plugin):
         # Check if player needs to be warned.
         elif status and status[0] == "warn":
             self.pending_warnings[player.steam_id] = status[1]
-        
+
         # Check if a player has been banned manually.
         banned = self.is_banned(player.steam_id)
         if banned:
@@ -157,7 +157,7 @@ class ban(minqlx.Plugin):
         except minqlx.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
-        
+
         if target_player:
             name = target_player.name
         else:
@@ -172,14 +172,14 @@ class ban(minqlx.Plugin):
             reason = " ".join(msg[4:])
         else:
             reason = ""
-        
+
         r = LENGTH_REGEX.match(" ".join(msg[2:4]).lower())
         if r:
             number = float(r.group("number"))
             if number <= 0: return
             scale = r.group("scale").rstrip("s")
             td = None
-            
+
             if scale == "second":
                 td = datetime.timedelta(seconds=number)
             elif scale == "minute":
@@ -194,7 +194,7 @@ class ban(minqlx.Plugin):
                 td = datetime.timedelta(days=number * 30)
             elif scale == "year":
                 td = datetime.timedelta(weeks=number * 52)
-            
+
             now = datetime.datetime.now().strftime(TIME_FORMAT)
             expires = (datetime.datetime.now() + td).strftime(TIME_FORMAT)
             base_key = PLAYER_KEY.format(ident) + ":bans"
@@ -204,7 +204,7 @@ class ban(minqlx.Plugin):
             ban = {"expires": expires, "reason": reason, "issued": now, "issued_by": player.steam_id}
             db.hmset(base_key + ":{}".format(ban_id), ban)
             db.execute()
-            
+
             try:
                 self.kick(ident, "has been banned until ^6{}^7: {}".format(expires, reason))
             except ValueError:
@@ -227,7 +227,7 @@ class ban(minqlx.Plugin):
         except minqlx.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
-        
+
         if target_player:
             name = target_player.name
         else:
@@ -261,7 +261,7 @@ class ban(minqlx.Plugin):
         except minqlx.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
-        
+
         if target_player:
             name = target_player.name
         else:
@@ -281,7 +281,7 @@ class ban(minqlx.Plugin):
             if status and status[0] == "ban":
                 channel.reply("^6{} ^7is banned for having left too many games.".format(name))
                 return
-        
+
         channel.reply("^6{} ^7is not banned.".format(name))
 
     def cmd_forgive(self, player, msg, channel):
@@ -301,7 +301,7 @@ class ban(minqlx.Plugin):
         except minqlx.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
-        
+
         if target_player:
             name = target_player.name
         else:
@@ -311,12 +311,12 @@ class ban(minqlx.Plugin):
         if base_key not in self.db:
             channel.reply("I do not know ^6{}^7.".format(name))
             return
-        
+
         try:
             leaves = int(self.db[base_key + ":games_left"])
         except KeyError:
             leaves = 0
-        
+
         if leaves <= 0:
             channel.reply("^6{}^7's leaves are already at ^6{}^7.".format(name, leaves))
             return
@@ -338,9 +338,14 @@ class ban(minqlx.Plugin):
             self.db[base_key + ":games_left"] = new_leaves
             channel.reply("^6{}^7 games have been forgiven, putting ^6{}^7 at ^6{}^7 leaves."
                 .format(leaves_to_forgive, name, new_leaves))
-    
+
     def cmd_leaves(self, player, msg, channel):
-        channel.reply("{}^7 has {}^7 leaves on this server.".format(player.name, self.db.get("minqlx:players:{}:games_left".format(player.steam_id))))
+        leaves = self.db.get("minqlx:players:{}:games_left".format(player.steam_id))
+
+        if (not leaves) or (leaves == "0"):
+            channel.reply("{}^7 has no leaves recorded.".format(player.name))
+        else:
+            channel.reply("{}^7 has {}^7 leaves recorded.".format(player.name, leaves))
 
     # ====================================================================
     #                               HELPERS
@@ -356,7 +361,7 @@ class ban(minqlx.Plugin):
         expires = datetime.datetime.strptime(longest_ban["expires"], TIME_FORMAT)
         if (expires - datetime.datetime.now()).total_seconds() > 0:
             return expires, longest_ban["reason"]
-        
+
         return None
 
     def leave_status(self, steam_id):
@@ -371,7 +376,7 @@ class ban(minqlx.Plugin):
             left = self.db[PLAYER_KEY.format(steam_id) + ":games_left"]
         except KeyError:
             return None
-        
+
         completed = int(completed)
         left = int(left)
 
@@ -389,7 +394,7 @@ class ban(minqlx.Plugin):
             ratio = (completed + (min_games_completed - total)) / min_games_completed
         else:
             ratio = completed / total
-            
+
         if ratio <= warn_threshold and (ratio > ban_threshold or total < min_games_completed):
             action = "warn"
         elif ratio <= ban_threshold and total >= min_games_completed:
