@@ -39,6 +39,7 @@ class ban(minqlx.Plugin):
         self.add_command("unban", self.cmd_unban, 2, usage="<id>")
         self.add_command("checkban", self.cmd_checkban, usage="<id>")
         self.add_command("forgive", self.cmd_forgive, 2, usage="<id> [leaves_to_forgive]")
+        self.add_command("leaves", self.cmd_leaves)
 
         # Cvars.
         self.set_cvar_once("qlx_leaverBan", "0")
@@ -337,7 +338,9 @@ class ban(minqlx.Plugin):
             self.db[base_key + ":games_left"] = new_leaves
             channel.reply("^6{}^7 games have been forgiven, putting ^6{}^7 at ^6{}^7 leaves."
                 .format(leaves_to_forgive, name, new_leaves))
-
+    
+    def cmd_leaves(self, player, msg, channel):
+        channel.reply("{}^7 has {}^7 leaves on this server.".format(player.name, self.db.get("minqlx:players:{}:games_left".format(player.steam_id))))
 
     # ====================================================================
     #                               HELPERS
