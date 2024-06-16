@@ -813,6 +813,10 @@ class essentials(minqlx.Plugin):
             if player.clean_name not in names:
                 db.lpush(base_key, player.name)
                 db.ltrim(base_key, 0, 19)
+
+        if player.name:
+            # Record the player's latest name.
+            db.set("{}:current_name".format(base_key), player.name)
         
         db.execute()
 
