@@ -1,7 +1,7 @@
 # minqlx - A Quake Live server administrator bot.
 # Copyright (C) 2015 Mino <mino@minomino.org>
 
-# This file is part of minqlx.
+# This file is part of minqlxtended.
 
 # minqlx is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with minqlx. If not, see <http://www.gnu.org/licenses/>.
 
-#Some essential functions.
 
 import minqlx
 import minqlx.database
@@ -78,7 +77,8 @@ class essentials(minqlx.Plugin):
         self.add_command(("map", "changemap"), self.cmd_map, 2, usage="<mapname> [factory]")
         self.add_command(("help", "about", "version"), self.cmd_help)
         self.add_command("db", self.cmd_db, 5, usage="<key> [value]")
-        self.add_command("seen", self.cmd_seen, usage="<steam_id>")
+        self.add_command(("seen", "lastseen"), self.cmd_last_seen, usage="<steam_id>")
+        self.add_command("firstseen", self.cmd_first_seen, usage="<id>/<steam_id>")
         self.add_command("time", self.cmd_time, usage="[timezone_offset]")
         self.add_command(("teamsize", "ts"), self.cmd_teamsize, 2, usage="<size>")
         self.add_command("rcon", self.cmd_rcon, 5)
@@ -666,9 +666,9 @@ class essentials(minqlx.Plugin):
         self.change_map(msg[1], msg[2] if len(msg) > 2 else None)
         
     def cmd_help(self, player, msg, channel):
-        # TODO: Perhaps print some essential commands in !help
-        player.tell("minqlx: ^6{}^7 - Plugins: ^6{}".format(minqlx.__version__, minqlx.__plugins_version__))
-        player.tell("See ^6github.com/MinoMino/minqlx^7 for more info about the mod and its commands.")
+        """ Provide version information """
+        player.tell("minqlxtended: ^6{}^7 - Plugins: ^6{}".format(minqlx.__version__, minqlx.__plugins_version__))
+        player.tell("See ^4github.com/tjone270/minqlxtended^7 for more information.")
         return minqlx.RET_STOP_ALL
     
     def cmd_db(self, player, msg, channel):
@@ -697,11 +697,55 @@ class essentials(minqlx.Plugin):
             channel.reply("^1{}^7: {}".format(e.__class__.__name__, e))
             raise
 
-    def cmd_seen(self, player, msg, channel):
+    def cmd_first_seen(self, player, msg, channel):
+        """Responds with the first time a player was seen on the server."""
+        if len(msg) < 2:
+            return minqlx.RET_USAGE
+
+        try:
+            steam_id = int(msg[1])
+            target_player = None
+            if 0 <= steam_id < 64:
+                target_player = self.player(steam_id)
+                steam_id = target_player.steam_id
+        except ValueError:
+            channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
+            return
+        except minqlx.NonexistentPlayerError:
+            channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
+            return
+        
+        if target_player:
+            name = target_player.name + "^7"
+        else:
+            name = "that player" if steam_id != minqlx.owner() else "my ^4master^7"
+
+        key = "minqlx:players:{}:first_seen".format(steam_id)
+        if key in self.db:
+            then = datetime.datetime.strptime(self.db[key], DATETIME_FORMAT)
+            td = datetime.datetime.now() - then
+            r = re.match(r'((?P<d>.*) days*, )?(?P<h>..?):(?P<m>..?):.+', str(td))
+            if r.group("d"):
+                channel.reply("^7I first saw {} ^6{}^7 day{}, ^6{}^7 hour{} and ^6{}^7 minute{} ago."
+                    .format(name,
+                            int(r.group("d")), self.plural(r.group("d")),
+                            int(r.group("h")), self.plural(r.group("h")),
+                            int(r.group("m")), self.plural(r.group("m"))))
+            else:
+                channel.reply("^7I first saw {} ^6{}^7 hour{} and ^6{}^7 minute{} ago."
+                    .format(name,
+                            int(r.group("h")), self.plural(r.group("h")),
+                            int(r.group("m")), self.plural(r.group("m"))))
+        else:
+            if "minqlx:players:{}".format(steam_id) in self.db:
+                channel.reply("^7That player is ^6too old^7 to have that date recorded.")
+            else:
+                channel.reply("^7I have never seen ^6{}^7 before.".format(name))
+
+    def cmd_last_seen(self, player, msg, channel):
         """Responds with the last time a player was seen on the server."""
         if len(msg) < 2:
             return minqlx.RET_USAGE
-        # TODO: Save a couple of nicknames in DB and have !seen work with nicks too?
 
         try:
             steam_id = int(msg[1])
@@ -724,11 +768,16 @@ class essentials(minqlx.Plugin):
             td = datetime.datetime.now() - then
             r = re.match(r'((?P<d>.*) days*, )?(?P<h>..?):(?P<m>..?):.+', str(td))
             if r.group("d"):
-                channel.reply("^7I saw {} ^6{}^7 day(s), ^6{}^7 hour(s) and ^6{}^7 minute(s) ago."
-                    .format(name, r.group("d"), r.group("h"), r.group("m")))
+                channel.reply("^7I last saw {} ^6{}^7 day{}, ^6{}^7 hour{} and ^6{}^7 minute{} ago."
+                    .format(name,
+                            int(r.group("d")), self.plural(r.group("d")),
+                            int(r.group("h")), self.plural(r.group("h")),
+                            int(r.group("m")), self.plural(r.group("m"))))
             else:
-                channel.reply("^7I saw {} ^6{}^7 hour(s) and ^6{}^7 minute(s) ago."
-                    .format(name, r.group("h"), r.group("m")))
+                channel.reply("^7I last saw {} ^6{}^7 hour{} and ^6{}^7 minute{} ago."
+                    .format(name,
+                            int(r.group("h")), self.plural(r.group("h")),
+                            int(r.group("m")), self.plural(r.group("m"))))
         else:
             channel.reply("^7I have never seen {} before.".format(name))
 
@@ -778,10 +827,14 @@ class essentials(minqlx.Plugin):
             minqlx.console_command(" ".join(msg[1:]))
 
     def cmd_mappool(self, player, msg, channel):
-        if not self.mappool or not self.get_cvar("qlx_enforceMappool", bool):
-            player.tell("No map pool is being enforced. You are free to vote any map.")
-        else:
-            self.tell_mappool(player)
+        if not self.mappool:
+            player.tell("The map pool is currently unavailable.")
+            return
+
+        self.tell_mappool(player)
+
+        if not self.get_cvar("qlx_enforceMappool", bool):
+            player.tell("No map pool is currently enforced. You are free to vote any map.")
 
         return minqlx.RET_STOP_ALL
 
@@ -808,11 +861,16 @@ class essentials(minqlx.Plugin):
         if base_key not in self.db:
             db.lpush(base_key, player.name)
             db.sadd("minqlx:players", player.steam_id)
+            db.set(base_key + ":first_seen", datetime.datetime.now().strftime(DATETIME_FORMAT))
         else:
             names = [self.clean_text(n) for n in self.db.lrange(base_key, 0, -1)]
             if player.clean_name not in names:
                 db.lpush(base_key, player.name)
                 db.ltrim(base_key, 0, 19)
+
+        if player.name:
+            # Record the player's latest name.
+            db.set("{}:current_name".format(base_key), player.name)
         
         db.execute()
 
@@ -868,6 +926,9 @@ class essentials(minqlx.Plugin):
     def tell_mappool(self, player, indent=0):
         out = ""
         for m in sorted(self.mappool.items(), key=lambda x: x[0]):
-            out += ("{0}{1:25} Factories: {2}\n"
+            out += ("Map: {0}^6{1:25}^7 Factories: ^6{2}^7\n"
                 .format(" " * indent, m[0], ", ".join(val for val in m[1])))
         player.tell(out.rstrip("\n"))
+
+    def plural(self, sample):
+        return "s" if int(sample) != 1 else ""
