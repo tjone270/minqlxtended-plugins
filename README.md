@@ -43,7 +43,7 @@ like you would with any other QLDS CVAR.
   - `qlx_balanceApi`: The endpoint to use for ratings calls.
     - Default: `elo`
     - Alternative: `elo_b`
-- **silence**: Adds commands to mute a player for an extended period of time. This persists across player reconnections, as opposed to the default mute behavior of `qzeroded`.
+- **silence**: Adds commands to mute a player for an extended period of time. This persists across player reconnections, as opposed to the default mute behavior of `qzeroded`. Silencing a player has additional effects, such as preventing name changes and vote calling.
 - **clan**: Adds commands to let players have persistent clan tags without having to change the name on Steam.
 - **motd**: Adds commands to set a message of the day.
   - `qlx_motdSound`: The path to a sounds that is played when players connect and have the MOTD printed to them.
