@@ -29,6 +29,8 @@ like you would with any other QLDS CVAR.
     - Default: `0.78`
   - `qlx_leaverBanMinimumGames`: If `qlx_leaverBan` is `1`, determines the minimum number of games a player has to player before automatic banning takes place. If it determines a player cannot possibly recover even if they were to not leave any future games before the minimum, the player will  still be banned.
     - Default: `15`
+  - `qlx_statOtherPlayersPermission`: The permission level required for players to use the `!leaves` command to obtain other player statistics.
+    - Default: `1`
 - **balance**: Adds commands and CVARs to help balance teams in team games using ratings provided by third-party services (like [QLStats](https://qlstats.net)). 
   - `qlx_balanceAuto`: A boolean determining whether or not we should automatically try to balance teams if a shuffle vote passes.
     - Default: `1`

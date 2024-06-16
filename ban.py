@@ -1,7 +1,7 @@
 # minqlx - A Quake Live server administrator bot.
 # Copyright (C) 2015 Mino <mino@minomino.org>
 
-# This file is part of minqlx.
+# This file is part of minqlxtended.
 
 # minqlx is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,13 +39,14 @@ class ban(minqlx.Plugin):
         self.add_command("unban", self.cmd_unban, 2, usage="<id>")
         self.add_command("checkban", self.cmd_checkban, usage="<id>")
         self.add_command("forgive", self.cmd_forgive, 2, usage="<id> [leaves_to_forgive]")
-        self.add_command("leaves", self.cmd_leaves)
+        self.add_command(("gamestats", "leaves"), self.cmd_gamestats, usage="<id>")
 
         # Cvars.
         self.set_cvar_once("qlx_leaverBan", "0")
         self.set_cvar_limit_once("qlx_leaverBanThreshold", "0.63", "0", "1")
         self.set_cvar_limit_once("qlx_leaverBanWarnThreshold", "0.78", "0", "1")
         self.set_cvar_once("qlx_leaverBanMinimumGames", "15")
+        self.set_cvar_once("qlx_statOtherPlayersPermission", "1")
 
         # List of players playing that could potentially be considered leavers.
         self.players_start = []
@@ -88,7 +89,7 @@ class ban(minqlx.Plugin):
 
     def handle_game_countdown(self):
         if self.get_cvar("qlx_leaverBan", bool):
-            self.msg("Leavers are being kept track of. Repeat offenders ^6will^7 be banned.")
+            self.msg("Leavers are being tracked. Repeat offenders ^6will^7 be banned.")
 
     # Needs a delay here because players will sometimes have their teams reset during the event.
     # TODO: Proper fix to self.teams() in game_start.
@@ -339,13 +340,41 @@ class ban(minqlx.Plugin):
             channel.reply("^6{}^7 games have been forgiven, putting ^6{}^7 at ^6{}^7 leaves."
                 .format(leaves_to_forgive, name, new_leaves))
 
-    def cmd_leaves(self, player, msg, channel):
-        leaves = self.db.get("minqlx:players:{}:games_left".format(player.steam_id))
-
-        if (not leaves) or (leaves == "0"):
-            channel.reply("{}^7 has no leaves recorded.".format(player.name))
+    def cmd_gamestats(self, player, msg, channel):
+        """ Returns the player's own game leave/completion statistics (or those of another player) """
+        if len(msg) < 2:  # the player wants his own leaves returned
+            target_player = player
+            ident = player.steam_id
         else:
-            channel.reply("{}^7 has {}^7 leaves recorded.".format(player.name, leaves))
+            if not self.db.has_permission(player, self.get_cvar("qlx_statOtherPlayersPermission", int)):
+                player.tell("You do not have permission to obtain game stats for other players.")
+                return minqlx.RET_STOP_ALL
+            try:
+                # assume a SteamID64 initially,
+                ident = int(msg[1])
+                target_player = None
+                if 0 <= ident < 64:  # unless the integer looks like a client ID
+                    target_player = self.player(ident)
+                    ident = target_player.steam_id
+            except ValueError:
+                channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
+                return
+            except minqlx.NonexistentPlayerError:
+                channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
+                return
+
+        games_left = self.db.get("minqlx:players:{}:games_left".format(ident))
+        games_completed = self.db.get("minqlx:players:{}:games_completed".format(ident))
+
+        if (games_completed == None) or (games_left == None):
+            channel.reply("^6{}^7 does not have that data recorded. Have you entered the right ID?".format(ident))
+            return
+
+        completion_percentage = (int(games_completed) / (int(games_left) + int(games_completed))) * 100
+
+        channel.reply("^6{}^7 has completed ^6{:.2f}％^7 of their games.".format(target_player.clean_name if target_player else ident, completion_percentage))
+        channel.reply("    ^6{}^7 game{} completed.".format(games_completed, ("s" if int(games_left) != 1 else "")))
+        channel.reply("    ^6{}^7 game{} left.".format(games_left, ("s" if int(games_left) != 1 else "")))
 
     # ====================================================================
     #                               HELPERS
