@@ -1,7 +1,7 @@
 # minqlx - A Quake Live server administrator bot.
 # Copyright (C) 2015 Mino <mino@minomino.org>
 
-# This file is part of minqlx.
+# This file is part of minqlxtended.
 
 # minqlx is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ LENGTH_REGEX = re.compile(r"(?P<number>[0-9]+) (?P<scale>seconds?|minutes?|hours
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 PLAYER_KEY = "minqlx:players:{}"
 
+
 class silence(minqlx.Plugin):
     def __init__(self):
         super().__init__()
@@ -32,12 +33,13 @@ class silence(minqlx.Plugin):
         self.add_hook("player_disconnect", self.handle_player_disconnect)
         self.add_hook("client_command", self.handle_client_command, priority=minqlx.PRI_HIGH)
         self.add_hook("userinfo", self.handle_userinfo, priority=minqlx.PRI_HIGH)
+        self.add_hook("vote_called", self.handle_vote_called, priority=minqlx.PRI_HIGH)
         self.add_command("silence", self.cmd_silence, 2, usage="<id> <length> seconds|minutes|hours|days|... [reason]")
         self.add_command("unsilence", self.cmd_unsilence, 2, usage="<id>")
         self.add_command("checksilence", self.cmd_checksilence, usage="<id>")
 
         self.silenced = {}
-    
+
     def handle_player_loaded(self, player):
         silenced = self.is_silenced(player.steam_id)
         if not silenced:
@@ -47,50 +49,62 @@ class silence(minqlx.Plugin):
         self.silenced[player.steam_id] = (expires, score, reason)
         player.mute()
         if reason:
-            player.tell("You are muted on this server until ^6{}^7: {}".format(expires, reason))
+            player.tell("You have been silenced on this server until ^6{}^7: {}".format(expires, reason))
         else:
-            player.tell("You are muted on this server until ^6{}^7.".format(expires))
+            player.tell("You have been silenced on this server until ^6{}^7.".format(expires))
 
     def handle_player_disconnect(self, player, reason):
         if player.steam_id in self.silenced:
             del self.silenced[player.steam_id]
 
     def handle_client_command(self, player, cmd):
+        """ Prevent a silenced player from using `say` or `say_team`. """
         if player.steam_id not in self.silenced:
             return
-        
+
         if (cmd.lower().startswith("say ") or cmd.lower().startswith("say_team ")):
             expires, score, reason = self.silenced[player.steam_id]
             if time.time() < score:
                 if reason:
-                    player.tell("You are muted on this server until ^6{}^7: {}".format(expires, reason))
+                    player.tell("You have been silenced on this server until ^6{}^7: {}".format(expires, reason))
                 else:
-                    player.tell("You are muted on this server until ^6{}^7.".format(expires))
+                    player.tell("You have been silenced on this server until ^6{}^7.".format(expires))
             else:
                 del self.silenced[player.steam_id]
                 player.unmute()
-                
+
                 @minqlx.next_frame
                 def repeat_command():
                     minqlx.client_command(player.id, cmd)
+
                 repeat_command()
 
             return minqlx.RET_STOP_ALL
 
     def handle_userinfo(self, player, changed):
+        """ Prevent a silenced player from changing their name. """
         if player.steam_id not in self.silenced:
             return
         elif "name" in changed:
             changed["name"] = player.name.rstrip("^7")
             return changed
 
+    def handle_vote_called(self, caller, vote, args):
+        """ Prevent a silenced player from calling a vote. """
+        if caller.steam_id not in self.silenced:
+            return
+
+        expires, score, reason = self.silenced[caller.steam_id]
+        if time.time() < score:
+            if reason:
+                caller.tell("You have been silenced on this server until ^6{}^7: {}".format(expires, reason))
+            else:
+                caller.tell("You have been silenced on this server until ^6{}^7.".format(expires))
+
+        return minqlx.RET_STOP_ALL
+
     def cmd_silence(self, player, msg, channel):
-        """Mutes a player temporarily. A very long period works for all intents and
-        purposes as a permanent mute, so there's no separate command for that.
-
-        Example #1: !silence Mino 1 day Very rude!
-
-        Example #2: !silence sponge 50 years"""
+        """Mutes a player temporarily. A very long period works for all intents and purposes as a permanent mute, so there's no separate command for that."""
         if len(msg) < 4:
             return minqlx.RET_USAGE
 
@@ -106,7 +120,7 @@ class silence(minqlx.Plugin):
         except minqlx.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
-        
+
         if target_player:
             name = target_player.name
         else:
@@ -120,14 +134,14 @@ class silence(minqlx.Plugin):
             reason = " ".join(msg[4:])
         else:
             reason = ""
-        
+
         r = LENGTH_REGEX.match(" ".join(msg[2:4]).lower())
         if r:
             number = float(r.group("number"))
             if number <= 0: return
             scale = r.group("scale").rstrip("s")
             td = None
-            
+
             if scale == "second":
                 td = datetime.timedelta(seconds=number)
             elif scale == "minute":
@@ -142,7 +156,7 @@ class silence(minqlx.Plugin):
                 td = datetime.timedelta(days=number * 30)
             elif scale == "year":
                 td = datetime.timedelta(weeks=number * 52)
-            
+
             now = datetime.datetime.now().strftime(TIME_FORMAT)
             expires = (datetime.datetime.now() + td).strftime(TIME_FORMAT)
             base_key = PLAYER_KEY.format(ident) + ":silences"
@@ -160,7 +174,7 @@ class silence(minqlx.Plugin):
                     target_player.mute()
                 except ValueError:
                     pass
-            channel.reply("^6{} ^7has been silenced. Silence expires on ^6{}^7.".format(name, expires))
+            channel.reply("^6{}^7 has been silenced. Silence expires on ^6{}^7.".format(name, expires))
 
     def cmd_unsilence(self, player, msg, channel):
         """Unsilences a player if silenced."""
@@ -181,7 +195,7 @@ class silence(minqlx.Plugin):
         except minqlx.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
-        
+
         if target_player:
             name = target_player.name
         else:
@@ -219,7 +233,7 @@ class silence(minqlx.Plugin):
         except minqlx.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
-        
+
         if target_player:
             name = target_player.name
         else:
@@ -230,12 +244,13 @@ class silence(minqlx.Plugin):
         if res:
             expires, score, reason = res
             if reason:
-                channel.reply("^6{}^7 is silenced until ^6{}^7 for the following reason:^6 {}".format(name, expires, reason))
+                channel.reply(
+                    "^6{}^7 is silenced until ^6{}^7 for the following reason: ^6{}^7".format(name, expires, reason))
             else:
                 channel.reply("^6{}^7 is silenced until ^6{}^7.".format(name, expires))
             return
-        
-        channel.reply("^6{} ^7is not silenced.".format(name))
+
+        channel.reply("^6{}^7 is not silenced.".format(name))
 
     # ====================================================================
     #                               HELPERS
@@ -252,5 +267,5 @@ class silence(minqlx.Plugin):
         expires = datetime.datetime.strptime(longest_silence["expires"], TIME_FORMAT)
         if (expires - datetime.datetime.now()).total_seconds() > 0:
             return expires, score, longest_silence["reason"]
-        
+
         return None
