@@ -14,9 +14,9 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
-import minqlx
+import minqlxtended
 import datetime
 import time
 import re
@@ -26,14 +26,14 @@ TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 PLAYER_KEY = "minqlx:players:{}"
 
 
-class silence(minqlx.Plugin):
+class silence(minqlxtended.Plugin):
     def __init__(self):
         super().__init__()
         self.add_hook("player_loaded", self.handle_player_loaded)
         self.add_hook("player_disconnect", self.handle_player_disconnect)
-        self.add_hook("client_command", self.handle_client_command, priority=minqlx.PRI_HIGH)
-        self.add_hook("userinfo", self.handle_userinfo, priority=minqlx.PRI_HIGH)
-        self.add_hook("vote_called", self.handle_vote_called, priority=minqlx.PRI_HIGH)
+        self.add_hook("client_command", self.handle_client_command, priority=minqlxtended.PRI_HIGH)
+        self.add_hook("userinfo", self.handle_userinfo, priority=minqlxtended.PRI_HIGH)
+        self.add_hook("vote_called", self.handle_vote_called, priority=minqlxtended.PRI_HIGH)
         self.add_command("silence", self.cmd_silence, 2, usage="<id> <length> seconds|minutes|hours|days|... [reason]")
         self.add_command("unsilence", self.cmd_unsilence, 2, usage="<id>")
         self.add_command("checksilence", self.cmd_checksilence, usage="<id>")
@@ -73,13 +73,13 @@ class silence(minqlx.Plugin):
                 del self.silenced[player.steam_id]
                 player.unmute()
 
-                @minqlx.next_frame
+                @minqlxtended.next_frame
                 def repeat_command():
-                    minqlx.client_command(player.id, cmd)
+                    minqlxtended.client_command(player.id, cmd)
 
                 repeat_command()
 
-            return minqlx.RET_STOP_ALL
+            return minqlxtended.RET_STOP_ALL
 
     def handle_userinfo(self, player, changed):
         """ Prevent a silenced player from changing their name. """
@@ -101,12 +101,12 @@ class silence(minqlx.Plugin):
             else:
                 caller.tell("You have been silenced on this server until ^6{}^7.".format(expires))
 
-        return minqlx.RET_STOP_ALL
+        return minqlxtended.RET_STOP_ALL
 
     def cmd_silence(self, player, msg, channel):
         """Mutes a player temporarily. A very long period works for all intents and purposes as a permanent mute, so there's no separate command for that."""
         if len(msg) < 4:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
 
         try:
             ident = int(msg[1])
@@ -117,7 +117,7 @@ class silence(minqlx.Plugin):
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
 
@@ -179,7 +179,7 @@ class silence(minqlx.Plugin):
     def cmd_unsilence(self, player, msg, channel):
         """Unsilences a player if silenced."""
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
 
         try:
             ident = int(msg[1])
@@ -192,7 +192,7 @@ class silence(minqlx.Plugin):
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
 
@@ -219,7 +219,7 @@ class silence(minqlx.Plugin):
     def cmd_checksilence(self, player, msg, channel):
         """Checks whether a player has been silenced, and if so, why."""
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
 
         try:
             ident = int(msg[1])
@@ -230,7 +230,7 @@ class silence(minqlx.Plugin):
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
 

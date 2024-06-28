@@ -1,7 +1,7 @@
 # minqlx - A Quake Live server administrator bot.
 # Copyright (C) 2015 Mino <mino@minomino.org>
 
-# This file is part of minqlx.
+# This file is part of minqlxtended.
 
 # minqlx is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,9 +14,9 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
-import minqlx
+import minqlxtended
 import logging
 import os.path
 import datetime
@@ -24,24 +24,24 @@ import os
 
 from logging.handlers import RotatingFileHandler
 
-class log(minqlx.Plugin):
+class log(minqlxtended.Plugin):
     def __init__(self):
-        self.add_hook("player_connect", self.handle_player_connect, priority=minqlx.PRI_LOWEST)
-        self.add_hook("player_disconnect", self.handle_player_disconnect, priority=minqlx.PRI_LOWEST)
-        self.add_hook("chat", self.handle_chat, priority=minqlx.PRI_LOWEST)
-        self.add_hook("command", self.handle_command, priority=minqlx.PRI_LOWEST)
+        self.add_hook("player_connect", self.handle_player_connect, priority=minqlxtended.PRI_LOWEST)
+        self.add_hook("player_disconnect", self.handle_player_disconnect, priority=minqlxtended.PRI_LOWEST)
+        self.add_hook("chat", self.handle_chat, priority=minqlxtended.PRI_LOWEST)
+        self.add_hook("command", self.handle_command, priority=minqlxtended.PRI_LOWEST)
 
         self.set_cvar_once("qlx_chatlogs", "3")
         self.set_cvar_once("qlx_chatlogsSize", str(3*10**6)) # 3 MB
 
         self.chatlog = logging.Logger(__name__)
-        file_dir = os.path.join(minqlx.get_cvar("fs_homepath"), "chatlogs")
+        file_dir = os.path.join(minqlxtended.get_cvar("fs_homepath"), "chatlogs")
         if not os.path.isdir(file_dir):
             os.makedirs(file_dir)
 
         file_path = os.path.join(file_dir, "chat.log")
-        maxlogs = minqlx.Plugin.get_cvar("qlx_chatlogs", int)
-        maxlogsize = minqlx.Plugin.get_cvar("qlx_chatlogsSize", int)
+        maxlogs = minqlxtended.Plugin.get_cvar("qlx_chatlogs", int)
+        maxlogsize = minqlxtended.Plugin.get_cvar("qlx_chatlogsSize", int)
         file_fmt = logging.Formatter("[%(asctime)s] %(message)s", "%Y-%m-%d %H:%M:%S")
         file_handler = RotatingFileHandler(file_path, encoding="utf-8", maxBytes=maxlogsize, backupCount=maxlogs)
         file_handler.setFormatter(file_fmt)

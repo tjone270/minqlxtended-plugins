@@ -1,7 +1,7 @@
 # minqlx - A Quake Live server administrator bot.
 # Copyright (C) 2015 Mino <mino@minomino.org>
 
-# This file is part of minqlx.
+# This file is part of minqlxtended.
 
 # minqlx is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,11 +14,11 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
-import minqlx
+import minqlxtended
 
-class workshop(minqlx.Plugin):
+class workshop(minqlxtended.Plugin):
     def __init__(self):
         self.add_hook("map", self.handle_map)
 
@@ -26,4 +26,4 @@ class workshop(minqlx.Plugin):
 
     def handle_map(self, *args, **kwargs):
         # Reference our custom workshop items.
-        self.game.workshop_items += minqlx.Plugin.get_cvar("qlx_workshopReferences", list)
+        self.game.workshop_items += minqlxtended.Plugin.get_cvar("qlx_workshopReferences", list)

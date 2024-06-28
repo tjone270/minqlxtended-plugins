@@ -1,7 +1,7 @@
 # minqlx - A Quake Live server administrator bot.
 # Copyright (C) 2015 Mino <mino@minomino.org>
 
-# This file is part of minqlx.
+# This file is part of minqlxtended.
 
 # minqlx is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,18 +14,18 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
 """Database agnostic way of getting and setting a player's permissions.
 
 It assumes the database driver interprets integers as SteamID64s and
-being able to handle minqlx.Player instances.
+being able to handle minqlxtended.Player instances.
 
 """
 
-import minqlx
+import minqlxtended
 
-class permission(minqlx.Plugin):
+class permission(minqlxtended.Plugin):
     def __init__(self):
         self.add_command("setperm", self.cmd_setperm, 5, usage="<id> <level>")
         self.add_command("getperm", self.cmd_getperm, 5, usage="<id>")
@@ -35,7 +35,7 @@ class permission(minqlx.Plugin):
 
     def cmd_setperm(self, player, msg, channel):
         if len(msg) < 3:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
         
         try:
             ident = int(msg[1])
@@ -46,7 +46,7 @@ class permission(minqlx.Plugin):
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
         
@@ -65,7 +65,7 @@ class permission(minqlx.Plugin):
 
     def cmd_getperm(self, player, msg, channel):
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
 
         try:
             ident = int(msg[1])
@@ -74,7 +74,7 @@ class permission(minqlx.Plugin):
                 target_player = self.player(ident)
                 ident = target_player.steam_id
 
-            if ident == minqlx.owner():
+            if ident == minqlxtended.owner():
                 channel.reply("That's my master.")
                 return
         except ValueError:
@@ -89,7 +89,7 @@ class permission(minqlx.Plugin):
             channel.reply("^6{}^7 has permission level ^6{}^7.".format(name, perm))
 
     def cmd_myperm(self, player, msg, channel):
-        if player.steam_id == minqlx.owner():
+        if player.steam_id == minqlxtended.owner():
             channel.reply("You can do anything to me, master.")
             return
         

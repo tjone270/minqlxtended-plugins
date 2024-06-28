@@ -1,14 +1,14 @@
 # Copyright (c) 2024 Thomas Jones <me@thomasjones.id.au>
 # This file is part of minqlxtended.
 
-import minqlx
+import minqlxtended
 
 SUPPORTED_GAMETYPES = ("ad", "ca", "ctf", "dom", "ft", "tdm")
 
-class last_in(minqlx.Plugin):
+class last_in(minqlxtended.Plugin):
     def __init__(self):
-        self.add_hook("team_switch", self.handle_team_switch, priority=minqlx.PRI_LOW)
-        self.add_hook("client_command", self.handle_client_command, priority=minqlx.PRI_HIGH)
+        self.add_hook("team_switch", self.handle_team_switch, priority=minqlxtended.PRI_LOW)
+        self.add_hook("client_command", self.handle_client_command, priority=minqlxtended.PRI_HIGH)
         self.add_hook("new_game", self.handle_new_game)
         self.add_hook("map", self.handle_map)
         self.add_command("lastin", self.cmd_last_in)
@@ -17,7 +17,7 @@ class last_in(minqlx.Plugin):
         self.transitioning_players = []
 
 
-    @minqlx.next_frame
+    @minqlxtended.next_frame
     def handle_team_switch(self, player, old_team, new_team):
         if player in self.transitioning_players:
             self.transitioning_players.remove(player)
@@ -62,7 +62,7 @@ class last_in(minqlx.Plugin):
 
         try:
             player.update()
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             return "{} ^3(disconnected)".format(player.clean_name), "No ID"
 
         if (not player.valid):

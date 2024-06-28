@@ -1,7 +1,7 @@
 # minqlbot - A Quake Live server administrator bot.
 # Copyright (C) 2015 Mino <mino@minomino.org>
 
-# This file is part of minqlx.
+# This file is part of minqlxtended.
 
 # minqlx is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,14 +14,14 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
 # Used mostly for debug. A potential security issue, since it allows
 # level 5 people to execute arbitrary Python code on your server.
 
-import minqlx
+import minqlxtended
 
-class raw(minqlx.Plugin):
+class raw(minqlxtended.Plugin):
     def __init__(self):
         self.add_command(("exec", "pyexec"), self.cmd_exec, 5,
             client_cmd_pass=False, usage="<python_code>")
@@ -30,7 +30,7 @@ class raw(minqlx.Plugin):
 
     def cmd_exec(self, player, msg, channel):
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
         else:
             try:
                 exec(" ".join(msg[1:]))
@@ -40,7 +40,7 @@ class raw(minqlx.Plugin):
 
     def cmd_eval(self, player, msg, channel):
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
         else:
             try:
                 channel.reply(str(eval(" ".join(msg[1:]))))
