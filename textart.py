@@ -8,7 +8,7 @@ to it producing too much text and making it overflow the command buffer.
 
 import threading
 import requests
-import minqlx
+import minqlxtended
 import bisect
 import random
 import os.path
@@ -22,7 +22,7 @@ FONT = "minqlx/data/droidsansmono.ttf"
 #FONT = "minqlx/data/arial.ttf"
 re_image = re.compile(r"^https?://.+/.+\.(?:jpg|png|bmp|gif)$")
 
-class textart(minqlx.Plugin):
+class textart(minqlxtended.Plugin):
     def __init__(self):
         self.add_hook("chat", self.handle_chat)
 
@@ -44,7 +44,7 @@ class textart(minqlx.Plugin):
             text = self.image_to_unicode(f, font_data, width=78)
             self.print_callback(text)
         except Exception as e:
-            minqlx.CHAT_CHANNEL.reply("Failed to create text art: {}".format(e))
+            minqlxtended.CHAT_CHANNEL.reply("Failed to create text art: {}".format(e))
             raise
 
     def print_callback(self, text):
@@ -57,10 +57,10 @@ class textart(minqlx.Plugin):
         
         gen = text_gen()
 
-        @minqlx.next_frame
+        @minqlxtended.next_frame
         def go():
             try:
-                minqlx.CHAT_CHANNEL.reply(next(gen))
+                minqlxtended.CHAT_CHANNEL.reply(next(gen))
                 go()
             except StopIteration:
                 return

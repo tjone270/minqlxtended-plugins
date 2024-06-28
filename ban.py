@@ -14,9 +14,9 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
-import minqlx
+import minqlxtended
 import datetime
 import time
 import re
@@ -25,10 +25,10 @@ LENGTH_REGEX = re.compile(r"(?P<number>[0-9]+) (?P<scale>seconds?|minutes?|hours
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 PLAYER_KEY = "minqlx:players:{}"
 
-class ban(minqlx.Plugin):
+class ban(minqlxtended.Plugin):
     def __init__(self):
         super().__init__()
-        self.add_hook("player_connect", self.handle_player_connect, priority=minqlx.PRI_HIGH)
+        self.add_hook("player_connect", self.handle_player_connect, priority=minqlxtended.PRI_HIGH)
         self.add_hook("player_loaded", self.handle_player_loaded)
         self.add_hook("player_disconnect", self.handle_player_disconnect)
         self.add_hook("game_countdown", self.handle_game_countdown)
@@ -70,13 +70,13 @@ class ban(minqlx.Plugin):
             else:
                 return "You are banned until {}.".format(expires)
 
-    @minqlx.delay(4)
+    @minqlxtended.delay(4)
     def handle_player_loaded(self, player):
         # Update first, since player might be gone in those 4 seconds.
         if player.steam_id in self.pending_warnings:
             try:
                 player.update()
-            except minqlx.NonexistentPlayerError:
+            except minqlxtended.NonexistentPlayerError:
                 return
 
             self.warn_player(player, self.pending_warnings[player.steam_id])
@@ -93,7 +93,7 @@ class ban(minqlx.Plugin):
 
     # Needs a delay here because players will sometimes have their teams reset during the event.
     # TODO: Proper fix to self.teams() in game_start.
-    @minqlx.delay(1)
+    @minqlxtended.delay(1)
     def handle_game_start(self, game):
         teams = self.teams()
         self.players_start = teams["red"] + teams["blue"]
@@ -144,7 +144,7 @@ class ban(minqlx.Plugin):
 
         Example #2: !ban sponge 50 years"""
         if len(msg) < 4:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
 
         try:
             ident = int(msg[1])
@@ -155,7 +155,7 @@ class ban(minqlx.Plugin):
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
 
@@ -214,7 +214,7 @@ class ban(minqlx.Plugin):
     def cmd_unban(self, player, msg, channel):
         """Unbans a player if banned."""
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
 
         try:
             ident = int(msg[1])
@@ -225,7 +225,7 @@ class ban(minqlx.Plugin):
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
 
@@ -248,7 +248,7 @@ class ban(minqlx.Plugin):
     def cmd_checkban(self, player, msg, channel):
         """Checks whether a player has been banned, and if so, why."""
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
 
         try:
             ident = int(msg[1])
@@ -259,7 +259,7 @@ class ban(minqlx.Plugin):
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
 
@@ -288,7 +288,7 @@ class ban(minqlx.Plugin):
     def cmd_forgive(self, player, msg, channel):
         """Removes a leave from a player. Optional integer can be provided to remove multiple leaves."""
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
 
         try:
             ident = int(msg[1])
@@ -299,7 +299,7 @@ class ban(minqlx.Plugin):
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
 
@@ -348,7 +348,7 @@ class ban(minqlx.Plugin):
         else:
             if not self.db.has_permission(player, self.get_cvar("qlx_statOtherPlayersPermission", int)):
                 player.tell("You do not have permission to obtain game stats for other players.")
-                return minqlx.RET_STOP_ALL
+                return minqlxtended.RET_STOP_ALL
             try:
                 # assume a SteamID64 initially,
                 ident = int(msg[1])
@@ -359,7 +359,7 @@ class ban(minqlx.Plugin):
             except ValueError:
                 channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
                 return
-            except minqlx.NonexistentPlayerError:
+            except minqlxtended.NonexistentPlayerError:
                 channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
                 return
 

@@ -1,7 +1,7 @@
 # minqlx - A Quake Live server administrator bot.
 # Copyright (C) 2015 Mino <mino@minomino.org>
 
-# This file is part of minqlx.
+# This file is part of minqlxtended.
 
 # minqlx is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,9 +14,9 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
-import minqlx
+import minqlxtended
 import requests
 import itertools
 import threading
@@ -33,7 +33,7 @@ SUPPORTED_GAMETYPES = ("ad", "ca", "ctf", "dom", "ft", "tdm")
 EXT_SUPPORTED_GAMETYPES = ("ad", "ca", "ctf", "dom", "ft", "tdm", "duel", "ffa")
 
 
-class balance(minqlx.Plugin):
+class balance(minqlxtended.Plugin):
     def __init__(self):
         self.add_hook("round_countdown", self.handle_round_countdown)
         self.add_hook("round_start", self.handle_round_start)
@@ -78,7 +78,7 @@ class balance(minqlx.Plugin):
         if all(self.suggested_agree):
             # If we don't delay the switch a bit, the round countdown sound and
             # text disappears for some weird reason.
-            @minqlx.next_frame
+            @minqlxtended.next_frame
             def f():
                 self.execute_suggestion()
             f()
@@ -94,7 +94,7 @@ class balance(minqlx.Plugin):
             if gt not in SUPPORTED_GAMETYPES:
                 return
 
-            @minqlx.delay(3.5)
+            @minqlxtended.delay(3.5)
             def f():
                 players = self.teams()
                 if len(players["red"] + players["blue"]) % 2 != 0:
@@ -102,7 +102,7 @@ class balance(minqlx.Plugin):
                     return
                 
                 players = dict([(p.steam_id, gt) for p in players["red"] + players["blue"]])
-                self.add_request(players, self.callback_balance, minqlx.CHAT_CHANNEL)
+                self.add_request(players, self.callback_balance, minqlxtended.CHAT_CHANNEL)
             f()
 
     def handle_player_disconnect(self, player, reason):
@@ -116,7 +116,7 @@ class balance(minqlx.Plugin):
             with self.ratings_lock:
                 self.ratings = {}
 
-    @minqlx.thread
+    @minqlxtended.thread
     def clean_player_data(self, player):
         for p in self.players().copy():
             if p.steam_id == player.steam_id and p.id != player.id:
@@ -130,7 +130,7 @@ class balance(minqlx.Plugin):
             if player.steam_id in self.ratings:
                 del self.ratings[player.steam_id]
 
-    @minqlx.thread
+    @minqlxtended.thread
     def fetch_ratings(self, players, request_id):
         if not players:
             return
@@ -233,7 +233,7 @@ class balance(minqlx.Plugin):
 
         self.handle_ratings_fetched(request_id, requests.codes.ok)
 
-    @minqlx.next_frame
+    @minqlxtended.next_frame
     def handle_ratings_fetched(self, request_id, status_code):
         players, callback, channel, args = self.requests[request_id]
         del self.requests[request_id]
@@ -277,10 +277,10 @@ class balance(minqlx.Plugin):
                     sid = target_player.steam_id
             except ValueError:
                 player.tell("Invalid ID. Use either a client ID or a SteamID64.")
-                return minqlx.RET_STOP_ALL
-            except minqlx.NonexistentPlayerError:
+                return minqlxtended.RET_STOP_ALL
+            except minqlxtended.NonexistentPlayerError:
                 player.tell("Invalid client ID. Use either a client ID or a SteamID64.")
-                return minqlx.RET_STOP_ALL
+                return minqlxtended.RET_STOP_ALL
 
         if len(msg) > 2:
             if msg[2].lower() in EXT_SUPPORTED_GAMETYPES:
@@ -288,12 +288,12 @@ class balance(minqlx.Plugin):
             else:
                 player.tell("Invalid gametype. Supported gametypes: {}"
                     .format(", ".join(EXT_SUPPORTED_GAMETYPES)))
-                return minqlx.RET_STOP_ALL
+                return minqlxtended.RET_STOP_ALL
         else:
             gt = self.game.type_short
             if gt not in EXT_SUPPORTED_GAMETYPES:
                 player.tell("This game mode is not supported by the balance plugin.")
-                return minqlx.RET_STOP_ALL
+                return minqlxtended.RET_STOP_ALL
 
         self.add_request({sid: gt}, self.callback_getrating, channel, gt)
 
@@ -309,7 +309,7 @@ class balance(minqlx.Plugin):
 
     def cmd_setrating(self, player, msg, channel):
         if len(msg) < 3:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
         
         try:
             sid = int(msg[1])
@@ -319,16 +319,16 @@ class balance(minqlx.Plugin):
                 sid = target_player.steam_id
         except ValueError:
             player.tell("Invalid ID. Use either a client ID or a SteamID64.")
-            return minqlx.RET_STOP_ALL
-        except minqlx.NonexistentPlayerError:
+            return minqlxtended.RET_STOP_ALL
+        except minqlxtended.NonexistentPlayerError:
             player.tell("Invalid client ID. Use either a client ID or a SteamID64.")
-            return minqlx.RET_STOP_ALL
+            return minqlxtended.RET_STOP_ALL
         
         try:
             rating = int(msg[2])
         except ValueError:
             player.tell("Invalid rating.")
-            return minqlx.RET_STOP_ALL
+            return minqlxtended.RET_STOP_ALL
 
         if target_player:
             name = target_player.name
@@ -349,7 +349,7 @@ class balance(minqlx.Plugin):
 
     def cmd_remrating(self, player, msg, channel):
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
         
         try:
             sid = int(msg[1])
@@ -359,10 +359,10 @@ class balance(minqlx.Plugin):
                 sid = target_player.steam_id
         except ValueError:
             player.tell("Invalid ID. Use either a client ID or a SteamID64.")
-            return minqlx.RET_STOP_ALL
-        except minqlx.NonexistentPlayerError:
+            return minqlxtended.RET_STOP_ALL
+        except minqlxtended.NonexistentPlayerError:
             player.tell("Invalid client ID. Use either a client ID or a SteamID64.")
-            return minqlx.RET_STOP_ALL
+            return minqlxtended.RET_STOP_ALL
         
         if target_player:
             name = target_player.name
@@ -383,15 +383,15 @@ class balance(minqlx.Plugin):
         gt = self.game.type_short
         if gt not in SUPPORTED_GAMETYPES:
             player.tell("This game mode is not supported by the balance plugin.")
-            return minqlx.RET_STOP_ALL
+            return minqlxtended.RET_STOP_ALL
 
         teams = self.teams()
         if len(teams["red"] + teams["blue"]) % 2 != 0:
             player.tell("The total number of players should be an even number.")
-            return minqlx.RET_STOP_ALL
+            return minqlxtended.RET_STOP_ALL
         
         players = dict([(p.steam_id, gt) for p in teams["red"] + teams["blue"]])
-        self.add_request(players, self.callback_balance, minqlx.CHAT_CHANNEL)
+        self.add_request(players, self.callback_balance, minqlxtended.CHAT_CHANNEL)
 
     def callback_balance(self, players, channel):
         # We check if people joined while we were requesting ratings and get them if someone did.
@@ -452,12 +452,12 @@ class balance(minqlx.Plugin):
         gt = self.game.type_short
         if gt not in SUPPORTED_GAMETYPES:
             player.tell("This game mode is not supported by the balance plugin.")
-            return minqlx.RET_STOP_ALL
+            return minqlxtended.RET_STOP_ALL
         
         teams = self.teams()
         if len(teams["red"]) != len(teams["blue"]):
             player.tell("Both teams should have the same number of players.")
-            return minqlx.RET_STOP_ALL
+            return minqlxtended.RET_STOP_ALL
         
         teams = dict([(p.steam_id, gt) for p in teams["red"] + teams["blue"]])
         self.add_request(teams, self.callback_teams, channel)
@@ -533,7 +533,7 @@ class balance(minqlx.Plugin):
         gt = self.game.type_short
         if gt not in EXT_SUPPORTED_GAMETYPES:
             player.tell("This game mode is not supported by the balance plugin.")
-            return minqlx.RET_STOP_ALL
+            return minqlxtended.RET_STOP_ALL
         
         players = dict([(p.steam_id, gt) for p in self.players()])
         self.add_request(players, self.callback_ratings, channel)
@@ -610,7 +610,7 @@ class balance(minqlx.Plugin):
         try:
             p1.update()
             p2.update()
-        except minqlx.NonexistentPlayerError:
+        except minqlxtended.NonexistentPlayerError:
             return
         
         if p1.team != "spectator" and p2.team != "spectator":

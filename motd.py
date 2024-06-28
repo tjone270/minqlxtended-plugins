@@ -1,7 +1,7 @@
 # minqlx - A Quake Live server administrator bot.
 # Copyright (C) 2015 Mino <mino@minomino.org>
 
-# This file is part of minqlx.
+# This file is part of minqlxtended.
 
 # minqlx is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,19 +14,19 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with minqlx. If not, see <http://www.gnu.org/licenses/>.
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
-import minqlx
-import minqlx.database
+import minqlxtended
+import minqlxtended.database
 
 MOTD_SET_KEY = "minqlx:motd"
 
-class motd(minqlx.Plugin):
-    database = minqlx.database.Redis
+class motd(minqlxtended.Plugin):
+    database = minqlxtended.database.Redis
 
     def __init__(self):
         super().__init__()
-        self.add_hook("player_loaded", self.handle_player_loaded, priority=minqlx.PRI_LOWEST)
+        self.add_hook("player_loaded", self.handle_player_loaded, priority=minqlxtended.PRI_LOWEST)
         self.add_command(("setmotd", "newmotd"), self.cmd_setmotd, 4, usage="<motd>")
         self.add_command(("setmotdall", "newmotdall"), self.cmd_setmotdall, 4, usage="<motd>")
         self.add_command(("getmotd", "motd"), self.cmd_getmotd)
@@ -46,7 +46,7 @@ class motd(minqlx.Plugin):
         self.set_cvar_once("qlx_motdSound", "sound/vo/crash_new/37b_07_alt.wav")
         self.set_cvar_once("qlx_motdHeader", "^6======= ^7Message of the Day ^6=======^7")
 
-    @minqlx.delay(2)
+    @minqlxtended.delay(2)
     def handle_player_loaded(self, player):
         """Send the message of the day to the player in a tell.
 
@@ -68,12 +68,12 @@ class motd(minqlx.Plugin):
 
     def cmd_setmotd(self, player, msg, channel):
         if len(msg) < 2:
-            return minqlx.RET_USAGE
+            return minqlxtended.RET_USAGE
         
         self.db.sadd(MOTD_SET_KEY, self.home)
         self.db[self.motd_key] = " ".join(msg[1:])
         player.tell("The MOTD has been set.")
-        return minqlx.RET_STOP_EVENT
+        return minqlxtended.RET_STOP_EVENT
 
     def cmd_setmotdall(self, player, msg, channel):
         motds = self.db.smembers(MOTD_SET_KEY)
@@ -83,25 +83,25 @@ class motd(minqlx.Plugin):
             db.set(motd_key, " ".join(msg[1:]))
         db.execute()
         player.tell("All MOTDs have been set.")
-        return minqlx.RET_STOP_EVENT
+        return minqlxtended.RET_STOP_EVENT
     
     def cmd_getmotd(self, player, msg, channel):
         if self.motd_key in self.db:
             self.send_motd(player, self.db[self.motd_key])
         else:
             player.tell("No MOTD has been set.")
-        return minqlx.RET_STOP_EVENT
+        return minqlxtended.RET_STOP_EVENT
 
     def cmd_clearmotd(self, player, msg, channel):
         del self.db[self.motd_key]
         player.tell("The MOTD has been cleared.")
-        return minqlx.RET_STOP_EVENT
+        return minqlxtended.RET_STOP_EVENT
 
     def cmd_clearmotdall(self, player, msg, channel):
         motds = [MOTD_SET_KEY + ":{}".format(m) for m in self.db.smembers(MOTD_SET_KEY)]
         self.db.delete(*motds)
         player.tell("All MOTDs have been cleared.")
-        return minqlx.RET_STOP_EVENT
+        return minqlxtended.RET_STOP_EVENT
 
     def cmd_addmotd(self, player, msg, channel):
         motd = self.db[self.motd_key]
@@ -113,7 +113,7 @@ class motd(minqlx.Plugin):
             self.db[self.motd_key] = motd + leading_space + " ".join(msg[1:])
             player.tell("The MOTD has been updated.")
 
-        return minqlx.RET_STOP_EVENT
+        return minqlxtended.RET_STOP_EVENT
 
     def cmd_addmotdall(self, player, msg, channel):
         motds = self.db.smembers(MOTD_SET_KEY)
@@ -126,7 +126,7 @@ class motd(minqlx.Plugin):
                 leading_space = "" if len(motd) > 2 and motd[-2:] == "\\n" else " "
                 self.db[motd_key] = motd + leading_space + " ".join(msg[1:])
         player.tell("Added to all MOTDs.")
-        return minqlx.RET_STOP_EVENT
+        return minqlxtended.RET_STOP_EVENT
 
     def send_motd(self, player, motd):
         for line in self.get_cvar("qlx_motdHeader").split("\\n"):
