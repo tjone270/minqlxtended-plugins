@@ -72,8 +72,8 @@ class balance(minqlxtended.Plugin):
 
     def cache_cvars(self):
         # Store some cvar values that are used in non-game threads
-        self.use_local = self.get_cvar("qlx_balanceUseLocal", bool)
-        self.api_url = "http://{}/{}/".format(self.get_cvar("qlx_balanceUrl"), self.get_cvar("qlx_balanceApi"))
+        self._use_local = self.get_cvar("qlx_balanceUseLocal", bool)
+        self._api_url = "http://{}/{}/".format(self.get_cvar("qlx_balanceUrl"), self.get_cvar("qlx_balanceApi"))
         self._local_elo_expiration = self.get_cvar("qlx_balanceLocalExpires", int)
 
     def handle_round_countdown(self, *args, **kwargs):
@@ -141,7 +141,7 @@ class balance(minqlxtended.Plugin):
         players = players.copy()
 
         # Get local ratings if present in DB.
-        if self.use_local:
+        if self._use_local:
             for steam_id in players.copy():
                 gt = players[steam_id]
                 key = RATING_KEY.format(steam_id, gt)
@@ -163,7 +163,7 @@ class balance(minqlxtended.Plugin):
 
         while attempts < MAX_ATTEMPTS:
             attempts += 1
-            url = self.api_url + "+".join([str(sid) for sid in players])
+            url = self._api_url + "+".join([str(sid) for sid in players])
             res = requests.get(url, headers={"X-QuakeLive-Map": self.game.map})
             last_status = res.status_code
             if res.status_code != requests.codes.ok:
