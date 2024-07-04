@@ -36,6 +36,8 @@ like you would with any other QLDS CVAR.
     - Default: `1`
   - `qlx_balanceUseLocal`: A boolean determining whether or not it should use local ratings set by the `!setrating` command.
     - Default: `1`
+  - `qlx_balanceLocalExpires`: Time in seconds before a locally-set rating value is removed from the database. Use `"0"` to disable expiration of locally-set ratings.
+    - Default: `0`
   - `qlx_balanceMinimumSuggestionDiff`: The minimum rating difference before it suggests a switch when `!teams` is executed.
     - Default: `25`
   - `qlx_balanceUrl`: The address to the site hosting an instance of [PredatH0r's XonStat fork](https://github.com/PredatH0r/XonStat), which is currently the only supported rating service.

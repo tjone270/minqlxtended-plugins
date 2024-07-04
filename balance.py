@@ -62,6 +62,7 @@ class balance(minqlxtended.Plugin):
         self.in_countdown = False
 
         self.set_cvar_once("qlx_balanceUseLocal", "1")
+        self.set_cvar_once("qlx_balanceLocalExpires", "0")
         self.set_cvar_once("qlx_balanceUrl", "qlstats.net")
         self.set_cvar_once("qlx_balanceAuto", "1")
         self.set_cvar_once("qlx_balanceMinimumSuggestionDiff", "25")
@@ -73,6 +74,7 @@ class balance(minqlxtended.Plugin):
         # Store some cvar values that are used in non-game threads
         self.use_local = self.get_cvar("qlx_balanceUseLocal", bool)
         self.api_url = "http://{}/{}/".format(self.get_cvar("qlx_balanceUrl"), self.get_cvar("qlx_balanceApi"))
+        self._local_elo_expiration = self.get_cvar("qlx_balanceLocalExpires", int)
 
     def handle_round_countdown(self, *args, **kwargs):
         if all(self.suggested_agree):
@@ -337,6 +339,8 @@ class balance(minqlxtended.Plugin):
         
         gt = self.game.type_short
         self.db[RATING_KEY.format(sid, gt)] = rating
+        if self._local_elo_expiration:
+            self.db.expires(RATING_KEY.format(sid, gt), self._local_elo_expiration)
 
         # If we have the player cached, set the rating.
         with self.ratings_lock:
