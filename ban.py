@@ -201,7 +201,7 @@ class ban(minqlxtended.Plugin):
             base_key = PLAYER_KEY.format(ident) + ":bans"
             ban_id = self.db.zcard(base_key)
             db = self.db.pipeline()
-            db.zadd(base_key, time.time() + td.total_seconds(), ban_id)
+            db.zadd(base_key, {ban_id: time.time() + td.total_seconds()})
             ban = {"expires": expires, "reason": reason, "issued": now, "issued_by": player.steam_id}
             db.hmset(base_key + ":{}".format(ban_id), ban)
             db.execute()
