@@ -64,6 +64,11 @@ class clan(minqlxtended.Plugin):
         if len(self.clean_text(msg[1])) > 5:
             player.tell("The clan tag can only be at most 5 characters long, excluding colors.")
             return minqlxtended.RET_STOP_EVENT
+
+        if "silence" in self.plugins:
+            if player.steam_id in self.plugins["silence"].silenced:
+                # prevent a silenced player from changing their clan tag, but let them remove it
+                return minqlxtended.RET_STOP_EVENT
         
         # If the player already has a clan, we need to edit the current
         # configstring. We can't just append cn and xcn.
