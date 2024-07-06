@@ -163,7 +163,7 @@ class silence(minqlxtended.Plugin):
             silence_id = self.db.zcard(base_key)
             score = time.time() + td.total_seconds()
             db = self.db.pipeline()
-            db.zadd(base_key, score, silence_id)
+            db.zadd(base_key, {silence_id: score})
             silence = {"expires": expires, "reason": reason, "issued": now, "issued_by": player.steam_id}
             db.hmset(base_key + ":{}".format(silence_id), silence)
             db.execute()
