@@ -18,7 +18,6 @@
 
 
 import minqlxtended
-import minqlxtended.database
 import datetime
 import itertools
 import time
@@ -32,8 +31,6 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 TIME_FORMAT = "%H:%M:%S"
 
 class essentials(minqlxtended.Plugin):
-    database = minqlxtended.database.Redis
-
     def __init__(self):
         super().__init__()
         self.add_hook("player_connect", self.handle_player_connect)
