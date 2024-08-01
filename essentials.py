@@ -40,8 +40,8 @@ class essentials(minqlxtended.Plugin):
         self.add_hook("player_disconnect", self.handle_player_disconnect)
         self.add_hook("vote_called", self.handle_vote_called)
         self.add_hook("command", self.handle_command, priority=minqlxtended.PRI_LOW)
-        self.add_command("id", self.cmd_id, 1, usage="[part_of_name] ...")
-        self.add_command("players", self.cmd_players, 1)
+        self.add_hook("client_command", self.handle_client_command)
+        self.add_command(("id", "players"), self.cmd_list_players, client_cmd_perm=0)
         self.add_command(("disconnects", "dcs"), self.cmd_disconnects, 1)
         self.add_command(("commands", "cmds"), self.cmd_commands, 2)
         self.add_command("shuffle", self.cmd_shuffle, 1)
@@ -162,60 +162,13 @@ class essentials(minqlxtended.Plugin):
     def handle_command(self, caller, command, args):
         self.recent_cmds.appendleft((caller, command, args))
 
-    def cmd_id(self, player, msg, channel):
-        """What you'll usually call before a lot of the other commands.
-        You give it parts of people's names and it replies with a list
-        of players that matched it. It ignores colors.
-
-        Ex.: ``!id min cool`` would list all players with those two
-        tokens in their name. "Mino", "COOLLER" and "^5I A^2M MI^6NO"
-        would all be possible candidates.
-
-        You can always do /players in the console, but this can save you
-        some time if you're only looking for a player or two, especially
-        since it can be done from chat too.
-
-        """
-        def list_alternatives(players, indent=2):
-            out = ""
-            for p in players:
-                out += " " * indent
-                out += "{}^6:^7 {}\n".format(p.id, p.name)
-            player.tell(out[:-1])
-        
-        player_list = self.players()
-        if not player_list:
-            player.tell("There are no players connected at the moment.")
-        elif len(msg) == 1:
-            player.tell("All connected players:")
-            list_alternatives(player_list)
-        else:
-            players = []
-            for name in msg[1:]:
-                for p in self.find_player(name):
-                    if p not in players:
-                        players.append(p)
-            if players:
-                player.tell("A total of ^6{}^7 players matched:".format(len(players)))
-                list_alternatives(players)
-            else:
-                player.tell("Sorry, but no players matched your tokens.")
-
-        # We reply directly to the player, so no need to let the event pass.
-        return minqlxtended.RET_STOP_ALL
-
-    def cmd_players(self, player, msg, channel):
-        """A command that mimics the output of the "players" console command."""
-        players = self.players()
-        if not len(players):
-            player.tell("There are no players connected at the moment.")
+    def handle_client_command(self, player, command):
+        if command.lower() == "players":
+            self.send_player_list(player)
             return minqlxtended.RET_STOP_ALL
-        
-        res = "{:^} | {:^17} | {:^15} | {:^}\n".format("ID", "SteamID64", "IP Address", "Name")
-        for p in players:
-            res += "{:2} | {:17} | {:15} | {}\n".format(p.id, p.steam_id, p.ip, p)
 
-        player.tell(res)
+    def cmd_list_players(self, player, msg, channel):
+        self.send_player_list(player)
         return minqlxtended.RET_STOP_ALL
 
     def cmd_disconnects(self, player, msg, channel):
@@ -932,3 +885,25 @@ class essentials(minqlxtended.Plugin):
 
     def plural(self, sample):
         return "s" if int(sample) != 1 else ""
+    
+    def send_player_list(self, target_player):
+        players = self.players()
+        for player in players:
+            player_permission = self.db.get_permission(player)
+            perm_char = " "
+            if player.steam_id == minqlxtended.owner(): 
+                perm_char = "M" # owner (master)
+            elif player.is_bot:
+                perm_char = "B" # bot
+            else:
+                perm_char = player_permission
+
+            ping_colour = "7"
+            if player.ping > 160:
+                ping_colour = "1"
+            elif player.ping > 80:
+                ping_colour = "3"
+            elif player.ping > 0:
+                ping_colour = "2"
+
+            target_player.tell(" {0.id:>2} | {0.steam_id} | ^{1}{0.ping:>3}ms^7 | ^{2}{3}^7 | {0.name}".format(player, ping_colour, player_permission if player_permission != 0 else 7, perm_char))
