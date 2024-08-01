@@ -17,13 +17,10 @@
 # along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
 import minqlxtended
-import minqlxtended.database
 
 MOTD_SET_KEY = "minqlx:motd"
 
 class motd(minqlxtended.Plugin):
-    database = minqlxtended.database.Redis
-
     def __init__(self):
         super().__init__()
         self.add_hook("player_loaded", self.handle_player_loaded, priority=minqlxtended.PRI_LOWEST)
