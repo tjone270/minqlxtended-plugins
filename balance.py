@@ -77,6 +77,7 @@ class balance(minqlxtended.Plugin):
         self._local_elo_expiration = self.get_cvar("qlx_balanceLocalExpires", int)
 
     def handle_round_countdown(self, *args, **kwargs):
+        self.in_countdown = True
         if all(self.suggested_agree):
             # If we don't delay the switch a bit, the round countdown sound and
             # text disappears for some weird reason.
@@ -84,8 +85,28 @@ class balance(minqlxtended.Plugin):
             def f():
                 self.execute_suggestion()
             f()
-        
-        self.in_countdown = True
+        elif (any(self.suggested_agree)) and (self.get_cvar("qlx_balanceCancelSuggestionAfterRound", bool)):
+            for player, agreed in zip(self.suggested_pair, self.suggested_agree):
+                if not agreed:
+                    continue
+
+                try:
+                    player.update()
+                    agreed_player = player
+                except minqlxtended.NonexistentPlayerError:
+                    self.suggested_pair = None
+                    self.suggested_agree = [False, False]
+                    return 
+
+            if agreed_player:
+                self.msg("As only ^4{}^7 agreed, the suggestion has been cancelled.".format(agreed_player.clean_name))
+
+            self.suggested_pair = None
+            self.suggested_agree = [False, False]
+        elif (self.suggested_pair != None) and (self.get_cvar("qlx_balanceCancelSuggestionAfterRound", bool)):
+            self.msg("As no-one agreed, the suggestion has been cancelled.")
+            self.suggested_pair = None
+            self.suggested_agree = [False, False]
 
     def handle_round_start(self, *args, **kwargs):
         self.in_countdown = False
@@ -271,6 +292,10 @@ class balance(minqlxtended.Plugin):
         if len(msg) == 1:
             sid = player.steam_id
         else:
+            if not self.db.has_permission(player, 2):  # purgery issue #6
+                channel.reply("Using the ^4{}^7 command to obtain other player's ratings is disabled on this server.".format(msg[0]))
+                return minqlxtended.RET_STOP
+
             try:
                 sid = int(msg[1])
                 target_player = None
@@ -374,14 +399,19 @@ class balance(minqlxtended.Plugin):
             name = sid
         
         gt = self.game.type_short
-        del self.db[RATING_KEY.format(sid, gt)]
+
+        try:
+            del self.db[RATING_KEY.format(sid, gt)]
+        except KeyError:
+            channel.reply("{}^7 does not have a locally set rating.".format(name))
+            return minqlxtended.RET_STOP_ALL
 
         # If we have the player cached, remove the game type.
         with self.ratings_lock:
             if sid in self.ratings and gt in self.ratings[sid]:
                 del self.ratings[sid][gt]
 
-        channel.reply("{}'s locally set {} rating has been deleted.".format(name, gt.upper()))
+        channel.reply("{}^7's locally set {} rating has been deleted.".format(name, gt.upper()))
 
     def cmd_balance(self, player, msg, channel):
         gt = self.game.type_short
@@ -538,7 +568,11 @@ class balance(minqlxtended.Plugin):
         if gt not in EXT_SUPPORTED_GAMETYPES:
             player.tell("This game mode is not supported by the balance plugin.")
             return minqlxtended.RET_STOP_ALL
-        
+
+        if not self.db.has_permission(player, 2):
+            player.tell("The ^4{}^7 command has been disabled on this server, except by moderators.".format(msg[0]))
+            return minqlxtended.RET_STOP_ALL
+
         players = dict([(p.steam_id, gt) for p in self.players()])
         self.add_request(players, self.callback_ratings, channel)
 
@@ -618,7 +652,7 @@ class balance(minqlxtended.Plugin):
             return
         
         if p1.team != "spectator" and p2.team != "spectator":
-            self.switch(self.suggested_pair[0], self.suggested_pair[1])
+            self.switch(p1, p2)            
         
         self.suggested_pair = None
         self.suggested_agree = [False, False]
