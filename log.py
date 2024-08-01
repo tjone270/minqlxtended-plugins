@@ -31,7 +31,7 @@ class log(minqlxtended.Plugin):
         self.add_hook("chat", self.handle_chat, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("command", self.handle_command, priority=minqlxtended.PRI_LOWEST)
 
-        self.set_cvar_once("qlx_chatlogs", "3")
+        self.set_cvar_once("qlx_chatlogs", "10")
         self.set_cvar_once("qlx_chatlogsSize", str(3*10**6)) # 3 MB
 
         self.chatlog = logging.Logger(__name__)
