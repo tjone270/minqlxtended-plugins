@@ -72,7 +72,7 @@ class essentials(minqlxtended.Plugin):
         self.add_command("allready", self.cmd_allready, 2)
         self.add_command("abort", self.cmd_abort, 2)
         self.add_command(("map", "changemap"), self.cmd_map, 2, usage="<mapname> [factory]")
-        self.add_command(("help", "about", "version"), self.cmd_help)
+        self.add_command(("help", "about", "version"), self.cmd_help, client_cmd_perm=0)
         self.add_command("db", self.cmd_db, 5, usage="<key> [value]")
         self.add_command(("seen", "lastseen"), self.cmd_last_seen, usage="<steam_id>")
         self.add_command("firstseen", self.cmd_first_seen, usage="<id>/<steam_id>")
@@ -81,7 +81,7 @@ class essentials(minqlxtended.Plugin):
         self.add_command("rcon", self.cmd_rcon, 5)
         self.add_command(("mappool", "maps", "maplist"), self.cmd_mappool, client_cmd_perm=0)
 
-        # Cvars.
+        # CVARs.
         self.set_cvar_once("qlx_votepass", "1")
         self.set_cvar_limit_once("qlx_votepassThreshold", "0.33", "0", "1")
         self.set_cvar_once("qlx_teamsizeMinimum", "1")
@@ -617,9 +617,8 @@ class essentials(minqlxtended.Plugin):
         
     def cmd_help(self, player, msg, channel):
         """ Provide version information """
-        player.tell("minqlxtended: ^6{}^7 - Plugins: ^6{}".format(minqlxtended.__version__, minqlxtended.__plugins_version__))
-        player.tell("See ^4github.com/tjone270/minqlxtended^7 for more information.")
-        return minqlxtended.RET_STOP_ALL
+        channel.reply("minqlxtended: ^6{}^7 - Plugins: ^6{}".format(minqlxtended.__version__, minqlxtended.__plugins_version__))
+        channel.reply("See ^4github.com/tjone270/minqlxtended^7 for more information.")
     
     def cmd_db(self, player, msg, channel):
         """Prints the value of a key in the database."""
