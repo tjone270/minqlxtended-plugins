@@ -204,11 +204,11 @@ class silence(minqlxtended.Plugin):
         base_key = PLAYER_KEY.format(ident) + ":silences"
         silences = self.db.zrangebyscore(base_key, time.time(), "+inf", withscores=True)
         if not silences:
-            channel.reply("^7 No active silences on ^6{}^7 found.".format(name))
+            channel.reply("^7No active silences on ^6{}^7 found.".format(name))
         else:
             db = self.db.pipeline()
             for silence_id, score in silences:
-                db.zincrby(base_key, silence_id, -score)
+                db.zincrby(base_key, -score, silence_id)
             db.execute()
             if ident in self.silenced:
                 del self.silenced[ident]

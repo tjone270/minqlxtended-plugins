@@ -241,7 +241,7 @@ class ban(minqlxtended.Plugin):
         else:
             db = self.db.pipeline()
             for ban_id, score in bans:
-                db.zincrby(base_key, ban_id, -score)
+                db.zincrby(base_key, -score, ban_id)
             db.execute()
             channel.reply("^6{}^7 has been unbanned.".format(name))
 
