@@ -41,7 +41,7 @@ class essentials(minqlxtended.Plugin):
         self.add_command(("id", "players"), self.cmd_list_players, client_cmd_perm=0)
         self.add_command(("disconnects", "dcs"), self.cmd_disconnects, 1)
         self.add_command(("commands", "cmds"), self.cmd_commands, 2)
-        self.add_command("shuffle", self.cmd_shuffle, 1)
+        self.add_command("shuffle", self.cmd_shuffle, 1, client_cmd_perm=1)
         self.add_command(("pause", "timeout"), self.cmd_pause, 1)
         self.add_command(("unpause", "timein"), self.cmd_unpause, 1)
         self.add_command("slap", self.cmd_slap, 2, usage="<id> [damage]")
@@ -162,6 +162,9 @@ class essentials(minqlxtended.Plugin):
     def handle_client_command(self, player, command):
         if command.lower() == "players":
             self.send_player_list(player)
+            return minqlxtended.RET_STOP_ALL
+        elif command.lower() == "players.":
+            self.send_player_list(player, True)
             return minqlxtended.RET_STOP_ALL
 
     def cmd_list_players(self, player, msg, channel):
@@ -764,7 +767,7 @@ class essentials(minqlxtended.Plugin):
             return
         
         self.game.teamsize = n
-        self.msg("The teamsize has been set to ^6{}^7 by {}.".format(n, player))
+        self.msg("The teamsize has been set to ^6{}^7 by {}^7.".format(n, player))
         return minqlxtended.RET_STOP_ALL
 
     def cmd_rcon(self, player, msg, channel):
@@ -882,7 +885,7 @@ class essentials(minqlxtended.Plugin):
     def plural(self, sample):
         return "s" if int(sample) != 1 else ""
     
-    def send_player_list(self, target_player):
+    def send_player_list(self, target_player, ease_sight = False):
         players = self.players()
         for player in players:
             player_permission = self.db.get_permission(player)
@@ -902,4 +905,9 @@ class essentials(minqlxtended.Plugin):
             elif player.ping > 0:
                 ping_colour = "2"
 
-            target_player.tell(" {0.id:>2} | {0.steam_id} | ^{1}{0.ping:>3}ms^7 | ^{2}{3}^7 | {0.name}".format(player, ping_colour, player_permission if player_permission != 0 else 7, perm_char))
+            line = " {0.steam_id} | {0.id:>2} | ^{1}{0.ping:>3}ms^7 | ^{2}{3}^7 | {0.name}".format(player, ping_colour, player_permission if player_permission != 0 else 7, perm_char)
+            
+            if ease_sight: # fenix849
+                line = line.replace(" ", ".")
+
+            target_player.tell(line)
