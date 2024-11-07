@@ -30,7 +30,6 @@ class untracked(minqlxtended.Plugin):
         
         self.tracked_players = set()
         self.untracked_players = set()
-        self.untracked_players.add(76561198213481765)
         
         if self._balance_loaded:
             self._api_url = self.plugins["balance"]._api_url
@@ -42,14 +41,17 @@ class untracked(minqlxtended.Plugin):
             
             self.check_player_trackable(player, self.handle_untracked_player)
 
+    @minqlxtended.next_frame
     def handle_player_loaded(self, player): # fires when clients re-prime after map change etc, along with initial game join
         if (self._balance_loaded):
             self.check_player_trackable(player, self.handle_untracked_player)
 
             if (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION):
-                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not a QLStats trackable player, their connection is not permitted.")
+                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable, their connection is blocked.")
             elif (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE):
-                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not a QLStats trackable player, they cannot join the match.")
+                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable, they cannot join the match.")
+            else:
+                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable.")
 
     def handle_team_switch(self, player, _, new_team):
         if new_team == "spectator": 
