@@ -34,11 +34,17 @@ class untracked(minqlxtended.Plugin):
         self.untracked_players = set()
 
     def handle_player_connect(self, player):
+        if player.is_bot:
+            return
+        
         if (self._balance_loaded) and (self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION):
             if self.is_player_tracked(player):
                 return PLAYER_CONNECTION_MESSAGE
 
     def handle_team_switch_attempt(self, player, old_team, new_team):
+        if player.is_bot:
+            return
+        
         if (self._balance_loaded) and (self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE):
             if self.is_player_tracked(player):
                 player.tell(PLAYER_TEAM_CHANGE_MESSAGE)
@@ -56,6 +62,6 @@ class untracked(minqlxtended.Plugin):
             return False # fail open
         
         data = res.json()            
-        if len(data["untracked"]) > 0:
+        if player.steam_id in data["untracked"]:
             self.untracked_players.add(player.steam_id)
             return True
