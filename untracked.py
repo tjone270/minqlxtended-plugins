@@ -35,7 +35,7 @@ class untracked(minqlxtended.Plugin):
             self._api_url = self.plugins["balance"]._api_url
 
     def handle_player_connect(self, player): # initial connection event
-        if (self._balance_loaded):
+        if self._balance_loaded:
             if (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION):
                 return PLAYER_CONNECTION_MESSAGE
             
@@ -43,7 +43,7 @@ class untracked(minqlxtended.Plugin):
 
     @minqlxtended.next_frame
     def handle_player_loaded(self, player): # fires when clients re-prime after map change etc, along with initial game join
-        if (self._balance_loaded):
+        if self._balance_loaded:
             self.check_player_trackable(player, self.handle_untracked_player)
 
             if (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION):
@@ -65,7 +65,7 @@ class untracked(minqlxtended.Plugin):
             return minqlxtended.RET_STOP_ALL
 
     def handle_untracked_player(self, player):
-        if player.valid and player.connection_state == "active":
+        if (player.valid) and (player.connection_state == "active"):
             if self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION:
                 player.kick(self.clean_text(PLAYER_DISALLOW_GAMEPLAY_MESSAGE))
             elif self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE:
@@ -76,7 +76,7 @@ class untracked(minqlxtended.Plugin):
 
     @minqlxtended.thread
     def check_player_trackable(self, player, callback_untracked) -> bool:
-        if player.is_bot or player.steam_id in self.tracked_players: # skip bots and pre-validated players.
+        if (player.is_bot) or (player.steam_id in self.tracked_players): # skip bots and pre-validated players.
             return
         
         if player.steam_id in self.untracked_players: # kick the arse of the existing ones.
