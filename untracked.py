@@ -8,79 +8,84 @@ import requests
 ACTION_PREVENT_TEAM_CHANGE = 1
 ACTION_PREVENT_PLAYER_CONNECTION = 2
 
-PLAYER_CONNECTION_MESSAGE = "Untrackable players are ^1not allowed^7 to connect to this server."
-PLAYER_TEAM_CHANGE_MESSAGE = "Untrackable players are ^1not allowed^7 to join the match."
+PLAYER_CONNECTION_MESSAGE = "Untrackable players are ^1not allowed^7 to connect to this server.\n"
+PLAYER_DISALLOW_GAMEPLAY_MESSAGE = "Untrackable players are ^1not allowed^7 to join the match."
 
 class untracked(minqlxtended.Plugin):
     def __init__(self):
-        self.add_hook("new_game", self.handle_new_game)
+        self.add_hook("new_game", self._cache)
         self.add_hook("player_connect", self.handle_player_connect)
         self.add_hook("player_loaded", self.handle_player_loaded)
-        self.add_hook("team_switch_attempt", self.handle_team_switch_attempt)
+        self.add_hook("team_switch_attempt", self.handle_team_switch)
         self.add_hook("team_switch", self.handle_team_switch)
 
         self.set_cvar_once("qlx_untrackedPlayerAction", "0") # 0 = do nothing, 1 = prevent player team changes, 2 = prevent player connection
 
-        self.tracked_players = set()
-        self.untracked_players = set()
-        self._cache_cvars()
+        self._cache()
 
 
-    def _cache_cvars(self):
+    def _cache(self):
         self._balance_loaded = ("balance" in self.plugins)
         self._untracked_player_action = self.get_cvar("qlx_untrackedPlayerAction", int)
-        if self._balance_loaded:
-            self._api_url = self.plugins["balance"]._api_url
         
-    def handle_new_game(self):
-        self._cache_cvars()
         self.tracked_players = set()
         self.untracked_players = set()
-
-    def handle_player_connect(self, player):
-        if (self._balance_loaded):
-            self.check_player_trackable(player, self.handle_untracked_player)
-
-    def handle_player_loaded(self, player):
-        if (self._balance_loaded):
-            self.check_player_trackable(player, self.handle_untracked_player)
-
-    def handle_team_switch_attempt(self, player, old_team, new_team):
-        if player.steam_id in self._untracked_players:
-            player.tell(PLAYER_TEAM_CHANGE_MESSAGE)
-            return minqlxtended.RET_STOP_ALL
+        self.untracked_players.add(76561198213481765)
         
-    def handle_team_switch(self, player, old_team, new_team):
-        if player.steam_id in self._untracked_players:
-            player.tell(PLAYER_TEAM_CHANGE_MESSAGE)
+        if self._balance_loaded:
+            self._api_url = self.plugins["balance"]._api_url
+
+    def handle_player_connect(self, player): # initial connection event
+        if (self._balance_loaded):
+            if (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION):
+                return PLAYER_CONNECTION_MESSAGE
+            
+            self.check_player_trackable(player, self.handle_untracked_player)
+
+    def handle_player_loaded(self, player): # fires when clients re-prime after map change etc, along with initial game join
+        if (self._balance_loaded):
+            self.check_player_trackable(player, self.handle_untracked_player)
+
+            if (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION):
+                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not a QLStats trackable player, their connection is not permitted.")
+            elif (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE):
+                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not a QLStats trackable player, they cannot join the match.")
+
+    def handle_team_switch(self, player, _, new_team):
+        if new_team == "spectator": 
+            return
+        
+        if (player.steam_id in self.untracked_players) and (self._untracked_player_action >= ACTION_PREVENT_TEAM_CHANGE):
+            if player.team != "spectator":
+                player.team = "spectator"
+
+            player.tell(PLAYER_DISALLOW_GAMEPLAY_MESSAGE)
             return minqlxtended.RET_STOP_ALL
 
     def handle_untracked_player(self, player):
         if player.valid and player.connection_state == "active":
             if self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION:
-                player.kick(PLAYER_CONNECTION_MESSAGE)
+                player.kick(self.clean_text(PLAYER_DISALLOW_GAMEPLAY_MESSAGE))
             elif self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE:
                 if player.team != "spectator":
-                    player.kick(PLAYER_TEAM_CHANGE_MESSAGE)
-                else:
-                    player.tell(PLAYER_TEAM_CHANGE_MESSAGE)
-            else:
-                pass # undefined action?
+                    player.team = "spectator"
 
-    @minqlxtended.thread()
-    def check_player_trackable(self, player, callback) -> bool:
-        if player.is_bot or player.steam_id in self.tracked_players: # skip bots and pre-validated players
+                player.tell(PLAYER_DISALLOW_GAMEPLAY_MESSAGE)
+
+    @minqlxtended.thread
+    def check_player_trackable(self, player, callback_untracked) -> bool:
+        if player.is_bot or player.steam_id in self.tracked_players: # skip bots and pre-validated players.
             return
         
-        if player.steam_id in self.untracked_players: # kick the arse of the 
-            callback(player)
+        if player.steam_id in self.untracked_players: # kick the arse of the existing ones.
+            callback_untracked(player)
         
         url = f"{self._api_url}{player.steam_id}"
         res = requests.get(url, headers={"X-QuakeLive-Map": self.game.map})
         if res.status_code == requests.codes.ok:
             data = res.json()            
-            if player.steam_id in data["untracked"]:
+            if str(player.steam_id) in data["untracked"]:
                 self.untracked_players.add(player.steam_id)
-                return callback(player)
+                return callback_untracked(player)
         
-        self.tracked_players.add(player.steam_id)
+        self.tracked_players.add(player.steam_id) # prevent future requests by caching the result per-game
