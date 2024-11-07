@@ -43,7 +43,7 @@ class balance(minqlxtended.Plugin):
         self.add_command(("setrating", "setelo"), self.cmd_setrating, 3, usage="<id> <rating>")
         self.add_command(("getrating", "getelo", "elo"), self.cmd_getrating, usage="<id> [gametype]")
         self.add_command(("remrating", "remelo"), self.cmd_remrating, 3, usage="<id>")
-        self.add_command("balance", self.cmd_balance, 1)
+        self.add_command("balance", self.cmd_balance, 1, client_cmd_perm=1)
         self.add_command(("teams", "teens"), self.cmd_teams)
         self.add_command("do", self.cmd_do, 1)
         self.add_command(("agree", "a"), self.cmd_agree, client_cmd_perm=0)
@@ -66,11 +66,12 @@ class balance(minqlxtended.Plugin):
         self.set_cvar_once("qlx_balanceUrl", "qlstats.net")
         self.set_cvar_once("qlx_balanceAuto", "1")
         self.set_cvar_once("qlx_balanceMinimumSuggestionDiff", "25")
-        self.set_cvar_once("qlx_balanceApi", "elo")
+        self.set_cvar_once("qlx_balanceCancelSuggestionAfterRound", "1")
+        self.set_cvar_once("qlx_balanceApi", "elo") 
 
-        self.cache_cvars()
+        self._cache_cvars()
 
-    def cache_cvars(self):
+    def _cache_cvars(self):
         # Store some cvar values that are used in non-game threads
         self._use_local = self.get_cvar("qlx_balanceUseLocal", bool)
         self._api_url = "http://{}/{}/".format(self.get_cvar("qlx_balanceUrl"), self.get_cvar("qlx_balanceApi"))
@@ -132,7 +133,7 @@ class balance(minqlxtended.Plugin):
         self.clean_player_data(player)
 
     def handle_new_game(self):
-        self.cache_cvars()
+        self._cache_cvars()
 
         # reset ratings cache on start
         if self.game.state == "warmup":
@@ -365,7 +366,7 @@ class balance(minqlxtended.Plugin):
         gt = self.game.type_short
         self.db[RATING_KEY.format(sid, gt)] = rating
         if self._local_elo_expiration:
-            self.db.expires(RATING_KEY.format(sid, gt), self._local_elo_expiration)
+            self.db.expire(RATING_KEY.format(sid, gt), self._local_elo_expiration)
 
         # If we have the player cached, set the rating.
         with self.ratings_lock:
