@@ -34,8 +34,8 @@ class silence(minqlxtended.Plugin):
         self.add_hook("client_command", self.handle_client_command, priority=minqlxtended.PRI_HIGH)
         self.add_hook("userinfo", self.handle_userinfo, priority=minqlxtended.PRI_HIGH)
         self.add_hook("vote_called", self.handle_vote_called, priority=minqlxtended.PRI_HIGH)
-        self.add_command("silence", self.cmd_silence, 2, usage="<id> <length> seconds|minutes|hours|days|... [reason]")
-        self.add_command("unsilence", self.cmd_unsilence, 2, usage="<id>")
+        self.add_command("silence", self.cmd_silence, 4, usage="<id> <length> seconds|minutes|hours|days|... [reason]")
+        self.add_command("unsilence", self.cmd_unsilence, 4, usage="<id>")
         self.add_command("checksilence", self.cmd_checksilence, usage="<id>")
 
         self.silenced = {}
