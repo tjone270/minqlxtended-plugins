@@ -15,10 +15,13 @@ class untracked(minqlxtended.Plugin):
     def __init__(self):
         self.add_hook("new_game", self.handle_new_game)
         self.add_hook("player_connect", self.handle_player_connect)
+        self.add_hook("player_loaded", self.handle_player_loaded)
         self.add_hook("team_switch_attempt", self.handle_team_switch_attempt)
+        self.add_hook("team_switch", self.handle_team_switch)
 
         self.set_cvar_once("qlx_untrackedPlayerAction", "0") # 0 = do nothing, 1 = prevent player team changes, 2 = prevent player connection
 
+        self.tracked_players = set()
         self.untracked_players = set()
         self._cache_cvars()
 
@@ -31,37 +34,53 @@ class untracked(minqlxtended.Plugin):
         
     def handle_new_game(self):
         self._cache_cvars()
+        self.tracked_players = set()
         self.untracked_players = set()
 
     def handle_player_connect(self, player):
-        if player.is_bot:
-            return
-        
-        if (self._balance_loaded) and (self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION):
-            if self.is_player_tracked(player):
-                return PLAYER_CONNECTION_MESSAGE
+        if (self._balance_loaded):
+            self.check_player_trackable(player, self.handle_untracked_player)
+
+    def handle_player_loaded(self, player):
+        if (self._balance_loaded):
+            self.check_player_trackable(player, self.handle_untracked_player)
 
     def handle_team_switch_attempt(self, player, old_team, new_team):
-        if player.is_bot:
+        if player.steam_id in self._untracked_players:
+            player.tell(PLAYER_TEAM_CHANGE_MESSAGE)
+            return minqlxtended.RET_STOP_ALL
+        
+    def handle_team_switch(self, player, old_team, new_team):
+        if player.steam_id in self._untracked_players:
+            player.tell(PLAYER_TEAM_CHANGE_MESSAGE)
+            return minqlxtended.RET_STOP_ALL
+
+    def handle_untracked_player(self, player):
+        if player.valid and player.connection_state == "active":
+            if self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION:
+                player.kick(PLAYER_CONNECTION_MESSAGE)
+            elif self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE:
+                if player.team != "spectator":
+                    player.kick(PLAYER_TEAM_CHANGE_MESSAGE)
+                else:
+                    player.tell(PLAYER_TEAM_CHANGE_MESSAGE)
+            else:
+                pass # undefined action?
+
+    @minqlxtended.thread()
+    def check_player_trackable(self, player, callback) -> bool:
+        if player.is_bot or player.steam_id in self.tracked_players: # skip bots and pre-validated players
             return
         
-        if (self._balance_loaded) and (self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE):
-            if self.is_player_tracked(player):
-                player.tell(PLAYER_TEAM_CHANGE_MESSAGE)
-                player.center_print(PLAYER_TEAM_CHANGE_MESSAGE)
-                return minqlxtended.RET_STOP_ALL
-
-    # not threaded, so runs in the main thread - had better be quick!
-    def is_player_tracked(self, player) -> bool:
-        if player.steam_id in self.untracked_players:
-            return True
+        if player.steam_id in self.untracked_players: # kick the arse of the 
+            callback(player)
         
         url = f"{self._api_url}{player.steam_id}"
         res = requests.get(url, headers={"X-QuakeLive-Map": self.game.map})
-        if res.status_code != requests.codes.ok:
-            return False # fail open
+        if res.status_code == requests.codes.ok:
+            data = res.json()            
+            if player.steam_id in data["untracked"]:
+                self.untracked_players.add(player.steam_id)
+                return callback(player)
         
-        data = res.json()            
-        if player.steam_id in data["untracked"]:
-            self.untracked_players.add(player.steam_id)
-            return True
+        self.tracked_players.add(player.steam_id)
