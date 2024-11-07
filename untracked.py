@@ -46,12 +46,13 @@ class untracked(minqlxtended.Plugin):
         if self._balance_loaded:
             self.check_player_trackable(player, self.handle_untracked_player)
 
-            if (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION):
-                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable, their connection is blocked.")
-            elif (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE):
-                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable, they cannot join the match.")
-            else:
-                self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable.")
+            if player.steam_id in self.untracked_players:
+                if self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION:
+                    self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable, their connection is blocked.")
+                elif self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE:
+                    self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable, they cannot join the match.")
+                else:
+                    self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable.")
 
     def handle_team_switch(self, player, _, new_team):
         if new_team == "spectator": 
