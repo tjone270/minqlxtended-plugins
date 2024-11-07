@@ -80,7 +80,7 @@ class untracked(minqlxtended.Plugin):
             return
         
         if player.steam_id in self.untracked_players: # kick the arse of the existing ones.
-            callback_untracked(player)
+            return callback_untracked(player)
         
         url = f"{self._api_url}{player.steam_id}"
         res = requests.get(url, headers={"X-QuakeLive-Map": self.game.map})
