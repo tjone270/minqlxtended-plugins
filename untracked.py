@@ -16,8 +16,8 @@ class untracked(minqlxtended.Plugin):
         self.add_hook("new_game", self._cache)
         self.add_hook("player_connect", self.handle_player_connect)
         self.add_hook("player_loaded", self.handle_player_loaded)
-        self.add_hook("team_switch_attempt", self.handle_team_switch)
-        self.add_hook("team_switch", self.handle_team_switch)
+        self.add_hook("team_switch_attempt", self.handle_team_switch, priority=minqlxtended.PRI_HIGHEST)
+        self.add_hook("team_switch", self.handle_team_switch, priority=minqlxtended.PRI_HIGHEST)
 
         self.set_cvar_once("qlx_untrackedPlayerAction", "0") # 0 = do nothing, 1 = prevent player team changes, 2 = prevent player connection
 
