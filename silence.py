@@ -104,7 +104,7 @@ class silence(minqlxtended.Plugin):
         return minqlxtended.RET_STOP_ALL
 
     def cmd_silence(self, player, msg, channel):
-        """Mutes a player temporarily. A very long period works for all intents and purposes as a permanent mute, so there's no separate command for that."""
+        """ Mutes a player temporarily. A very long period works for all intents and purposes as a permanent mute, so there's no separate command for that. """
         if len(msg) < 4:
             return minqlxtended.RET_USAGE
 
@@ -177,7 +177,7 @@ class silence(minqlxtended.Plugin):
             channel.reply("^6{}^7 has been silenced. Silence expires on ^6{}^7.".format(name, expires))
 
     def cmd_unsilence(self, player, msg, channel):
-        """Unsilences a player if silenced."""
+        """ Unsilences a player if silenced. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
@@ -217,7 +217,7 @@ class silence(minqlxtended.Plugin):
             channel.reply("^6{}^7 has been unsilenced.".format(name))
 
     def cmd_checksilence(self, player, msg, channel):
-        """Checks whether a player has been silenced, and if so, why."""
+        """ Checks whether a player has been silenced, and if so, why. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 

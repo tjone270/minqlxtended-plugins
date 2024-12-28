@@ -22,6 +22,7 @@ class votestats(minqlxtended.Plugin):
         self.has_voted = []
 
     def cmd_votes(self, player, msg, channel):
+        """ Prevents 'x voted y' messages from appearing for the calling player. Use again to re-enable these messages. """
         flag = self.db.get_flag(player, "votestats:votes_enabled", default=True)
         self.db.set_flag(player, "votestats:votes_enabled", not flag)
         if flag:

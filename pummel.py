@@ -37,6 +37,7 @@ class pummel(minqlxtended.Plugin):
             self.msg(msg)
     
     def cmd_pummel(self, player, msg, channel):
+        """ Shows the calling player all the players they've pummeled who are currently connected to this server. """
         pummels = self.db.smembers(PLAYER_KEY.format(player.steam_id) + ":pummeled")
         players = self.teams()["spectator"] + self.teams()["red"] + self.teams()["blue"] + self.teams()["free"]
         

@@ -31,7 +31,7 @@ class queue(minqlxtended.Plugin):
         self.add_hook("vote_ended", self.handle_vote_ended)
         self.add_hook("console_print", self.handle_console_print)
         self.add_command(("q", "queue"), self.cmd_lq)
-        self.add_command("afk", self.cmd_afk)
+        self.add_command("afk", self.cmd_afk, usage="<optional player ID>")
         self.add_command("here", self.cmd_playing)
         self.add_command(("teamsize", "ts"), self.cmd_teamsize, priority=minqlxtended.PRI_HIGH)
 
@@ -340,6 +340,7 @@ class queue(minqlxtended.Plugin):
         self.is_endscreen = True
     
     def cmd_lq(self, player, msg, channel):
+        """ Display the current queue. """
         msg = "^7No one in queue."
         if self._queue:
             msg = "^1Queue^7: "
@@ -357,6 +358,7 @@ class queue(minqlxtended.Plugin):
             channel.reply(msg)
     
     def cmd_afk(self, player, msg, channel):
+        """ Marks the calling player as AFK (or the player specified.) """
         if len(msg) > 1:
             if self.db.has_permission(player, self.get_cvar("qlx_queueSetAfkPermission", int)):
                 guy = self.find_player(msg[1])[0]
@@ -372,6 +374,7 @@ class queue(minqlxtended.Plugin):
             player.tell("^7Couldn't set your status to AFK.")
 
     def cmd_playing(self, player, msg, channel):
+        """ Marks the calling player as available. """
         self.remAFK(player)
         self.updTag(player)
         player.tell("^7Your status has been set to ^2AVAILABLE^7.")

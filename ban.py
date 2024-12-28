@@ -140,9 +140,9 @@ class ban(minqlxtended.Plugin):
         """Bans a player temporarily. A very long period works for all intents and
         purposes as a permanent ban, so there's no separate command for that.
 
-        Example #1: !ban Mino 1 day Very rude!
+        Example #1: !ban <Purger's ID> 1 day Hugely rapacious!
 
-        Example #2: !ban sponge 50 years"""
+        Example #2: !ban <SyncError's ID> 50 years"""
         if len(msg) < 4:
             return minqlxtended.RET_USAGE
 
@@ -212,7 +212,7 @@ class ban(minqlxtended.Plugin):
                 channel.reply("^6{} ^7has been banned. Ban expires on ^6{}^7.".format(name, expires))
 
     def cmd_unban(self, player, msg, channel):
-        """Unbans a player if banned."""
+        """ Unbans the specified player if banned. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
@@ -246,7 +246,7 @@ class ban(minqlxtended.Plugin):
             channel.reply("^6{}^7 has been unbanned.".format(name))
 
     def cmd_checkban(self, player, msg, channel):
-        """Checks whether a player has been banned, and if so, why."""
+        """ Checks whether a player has been banned, and if so, the reason (if originally specified.) """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
@@ -286,7 +286,7 @@ class ban(minqlxtended.Plugin):
         channel.reply("^6{} ^7is not banned.".format(name))
 
     def cmd_forgive(self, player, msg, channel):
-        """Removes a leave from a player. Optional integer can be provided to remove multiple leaves."""
+        """ Removes a leave from a player. Optional number can be specified to remove that amount of leaves. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
@@ -341,7 +341,7 @@ class ban(minqlxtended.Plugin):
                 .format(leaves_to_forgive, name, new_leaves))
 
     def cmd_gamestats(self, player, msg, channel):
-        """ Returns the player's own game leave/completion statistics (or those of another player) """
+        """ Returns the player's own game leave/completion statistics (or those of another player.) """
         if len(msg) < 2:  # the player wants his own leaves returned
             target_player = player
             ident = player.steam_id

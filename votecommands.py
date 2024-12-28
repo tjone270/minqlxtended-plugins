@@ -20,6 +20,7 @@ class votecommands(minqlxtended.Plugin):
             return minqlxtended.RET_STOP_ALL
 
     def cmd_force_vote(self, player, msg, channel):
+        """ Forces the current vote. """
         command = msg[0].lower().replace(self.get_cvar("qlx_commandPrefix"), "")
         
         if command == "yes" or command == "pass":

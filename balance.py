@@ -290,6 +290,7 @@ class balance(minqlxtended.Plugin):
         return players
 
     def cmd_getrating(self, player, msg, channel):
+        """ Fetch the rating of the player ID supplied, or of the calling player if no ID supplied. """
         if len(msg) == 1:
             sid = player.steam_id
         else:
@@ -336,6 +337,7 @@ class balance(minqlxtended.Plugin):
         channel.reply("{} has a rating of ^6{}^7 in {}.".format(name, self.ratings[sid][gametype]["elo"], gametype.upper()))
 
     def cmd_setrating(self, player, msg, channel):
+        """ Manually set the rating of a player. Depending on server configuration, this manually-set rating may expire after a pre-determined timeframe."""
         if len(msg) < 3:
             return minqlxtended.RET_USAGE
         
@@ -378,6 +380,7 @@ class balance(minqlxtended.Plugin):
         channel.reply("{}'s {} rating has been set to ^6{}^7.".format(name, gt.upper(), rating))
 
     def cmd_remrating(self, player, msg, channel):
+        """ Remove a manually-set rating for a player. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
         
@@ -415,6 +418,7 @@ class balance(minqlxtended.Plugin):
         channel.reply("{}^7's locally set {} rating has been deleted.".format(name, gt.upper()))
 
     def cmd_balance(self, player, msg, channel):
+        """ Balance the teams according to player ratings, by distributing players evenly. Requires that the total number of players should be an even number. """
         gt = self.game.type_short
         if gt not in SUPPORTED_GAMETYPES:
             player.tell("This game mode is not supported by the balance plugin.")
@@ -484,6 +488,7 @@ class balance(minqlxtended.Plugin):
         return True
 
     def cmd_teams(self, player, msg, channel):
+        """ Displays the current rating difference between teams. """
         gt = self.game.type_short
         if gt not in SUPPORTED_GAMETYPES:
             player.tell("This game mode is not supported by the balance plugin.")
@@ -541,12 +546,12 @@ class balance(minqlxtended.Plugin):
         return True
 
     def cmd_do(self, player, msg, channel):
-        """Forces a suggested switch to be done."""
+        """ Forces a player switch as suggested by the balancer to be done. """
         if self.suggested_pair:
             self.execute_suggestion()
 
     def cmd_agree(self, player, msg, channel):
-        """After the bot suggests a switch, players in question can use this to agree to the switch."""
+        """ After the balancer suggests a switch, players in question can use this command to indicate agreement to the switch. """
         if self.suggested_pair and not all(self.suggested_agree):
             p1, p2 = self.suggested_pair
             
@@ -565,6 +570,7 @@ class balance(minqlxtended.Plugin):
                 self.execute_suggestion()
 
     def cmd_ratings(self, player, msg, channel):
+        """ List the ratings for each player, grouped by teams. """
         gt = self.game.type_short
         if gt not in EXT_SUPPORTED_GAMETYPES:
             player.tell("This game mode is not supported by the balance plugin.")

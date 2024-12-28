@@ -34,6 +34,7 @@ class permission(minqlxtended.Plugin):
             channels=("chat", "red_team_chat", "blue_team_chat", "spectator_chat", "free_chat", "client_command"))
 
     def cmd_setperm(self, player, msg, channel):
+        """ Sets the specified player's permission level to that specified. """
         if len(msg) < 3:
             return minqlxtended.RET_USAGE
         
@@ -64,6 +65,7 @@ class permission(minqlxtended.Plugin):
         channel.reply("^6{}^7 was given permission level ^6{}^7.".format(name, level))
 
     def cmd_getperm(self, player, msg, channel):
+        """ Responds with the specified player's permission level. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
@@ -89,6 +91,7 @@ class permission(minqlxtended.Plugin):
             channel.reply("^6{}^7 has permission level ^6{}^7.".format(name, perm))
 
     def cmd_myperm(self, player, msg, channel):
+        """ Respond with the calling player's permission level. """
         if player.steam_id == minqlxtended.owner():
             channel.reply("You can do anything to me, master.")
             return

@@ -25,6 +25,7 @@ class tp_fun(minqlxtended.Plugin):
         self.plugin_version = "2.0"
 
     def cmd_spec_play(self, player, msg, channel):
+        """ Spawns all current spectators above the calling player. """
         if len(msg) > 1:
             z_pos_boost = int(msg[1])
         else:
@@ -48,6 +49,7 @@ class tp_fun(minqlxtended.Plugin):
             player.tell("{}^7 is spawned {} units above you.".format(p, z_pos_boost))
 
     def cmd_bury(self, player, msg, channel):
+        """ Buries the specified player in the ground. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
@@ -63,6 +65,7 @@ class tp_fun(minqlxtended.Plugin):
         target_player.position(z=target_player.position()[2] - 25)
 
     def cmd_digup(self, player, msg, channel):
+        """ Digs up the specified player (previously buried.) """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
@@ -78,6 +81,7 @@ class tp_fun(minqlxtended.Plugin):
         target_player.position(z=target_player.position()[2] + 25)
 
     def cmd_drawline(self, player, msg, channel):
+        """ Draws a line using flags between two sets of coordinates. """
         if len(msg) < 6:
             return minqlxtended.RET_USAGE
 
@@ -105,6 +109,7 @@ class tp_fun(minqlxtended.Plugin):
 
                
     def cmd_purger(self, player, msg, channel):
+        """ Responds with some froody Purger word-art. """
         channel.reply("""
 ______                          
 | ___ \                         
@@ -125,12 +130,14 @@ ______
             self.play_sound("sound/player/talk.ogg", player)
             
     def cmd_elated_emoji(self, player, msg, channel):
+        """ Causes the calling player to send the :D emoji to chat with randomised colours. """
         num1 = randint(0,6)
         num2 = randint(0,6)
         minqlxtended.client_command(player.id, "say ^{}:^{}D".format(num1, num2))
         return minqlxtended.RET_STOP_ALL
         
     def cmd_pentagram(self, player, msg, channel):
+        """ Provides the best known form of protection to the specified player, for 3 seconds. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
         
@@ -144,6 +151,7 @@ ______
         self.msg("{}^7 has got the ^1Pentagram of Protection^7!".format(pentagramee.name))
         
     def cmd_penlen(self, player, msg, channel):
+        """ How long is it eh? """
         playerName = player.clean_name
         randNum = randint(0,11)
         if randNum == 0:
@@ -152,6 +160,7 @@ ______
             channel.reply("^7{}^7's penis length: ^4{} inch{}^7".format(player, randNum, "es" if randNum != 1 else ""))
 
     def cmd_penwidth(self, player, msg, channel):
+        """ Length is one thing, but what about width? """
         randNum = randint(0, 4)
         if randNum == 0:
             channel.reply("^7{}^7's penis width: ^40 inches (anti-girth!)^7".format(player))
@@ -161,6 +170,7 @@ ______
             channel.reply("^7{}^7's penis width: ^4{} inch{}^7".format(player, randNum, "es" if randNum != 1 else ""))
 
     def cmd_vagdep(self, player, msg, channel):
+        """ Width is one thing, but what about depth? """
         playerName = player.clean_name
         randNum = randint(0,11)
         if randNum == 0:
@@ -169,6 +179,7 @@ ______
             channel.reply("^7{}^7's vaginal depth: ^4{} inch{}^7".format(player, randNum, "es" if randNum != 1 else ""))
 
     def cmd_boobsize(self, player, msg, channel):
+        """ Just have to know these things! """
         playerName = player.clean_name
         randNum = randint(0,5)
         if randNum == 0:
@@ -187,6 +198,7 @@ ______
         channel.reply("^7{}^7's cup size: ^4{}^7".format(playerName, cupSize))
            
     def cmd_screenmessage(self, player, msg, channel):
+        """ Display a message on all connected players' screens. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
@@ -194,6 +206,7 @@ ______
         self.play_sound("sound/world/klaxon2.wav")
 
     def cmd_printfu(self, player, msg, channel):
+        """ Fuck everybody! """
         minqlxtended.send_server_command(None, "cp \"^0FUCK YOU\n^1FUCK YOU\n^2FUCK YOU\n^3FUCK YOU\n^4FUCK YOU\n^5FUCK YOU\n^6FUCK YOU\"\n")
 
     def cmd_showversion(self, player, msg, channel):

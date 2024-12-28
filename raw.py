@@ -29,6 +29,7 @@ class raw(minqlxtended.Plugin):
             client_cmd_pass=False, usage="<python_code>")
 
     def cmd_exec(self, player, msg, channel):
+        """ 'exec' arbitrary Python code. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
         else:
@@ -39,6 +40,7 @@ class raw(minqlxtended.Plugin):
                 raise
 
     def cmd_eval(self, player, msg, channel):
+        """ 'eval' arbitrary Python code. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
         else:

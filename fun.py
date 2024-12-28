@@ -176,6 +176,7 @@ class fun(minqlxtended.Plugin):
                 super().play_sound(path, p)
 
     def cmd_cookies(self, player, msg, channel):
+        """ Give the server some cookies? """
         x = random.randint(0, 100)
         if not x:
             channel.reply("^6♥ ^7Here you go, {}. I baked these just for you! ^6♥".format(player))

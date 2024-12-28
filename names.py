@@ -68,6 +68,7 @@ class names(minqlxtended.Plugin):
                 player.tell("Your registered name has been reset.")
 
     def cmd_name(self, player, msg, channel):
+        """ Re-colours the player's name to the string specified, or clears custom colouring if nothing specified. """
         name_key = _name_key.format(player.steam_id)
         
         if len(msg) < 2:

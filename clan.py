@@ -45,6 +45,7 @@ class clan(minqlxtended.Plugin):
                 return value + "\\cn\\{0}\\xcn\\{0}".format(self.db[tag_key])
 
     def cmd_clan(self, player, msg, channel):
+        """ Sets the player's clan tag to the string specified, or clears it if nothing specified. """
         index = 529 + player.id
         tag_key = _tag_key.format(player.steam_id)
         

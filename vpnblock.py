@@ -29,6 +29,7 @@ class vpnblock(minqlxtended.Plugin):
                     return f"^7VPN connections aren't allowed on The Pur^4g^7ery. ^2Disable ^2your ^2VPN ^2to ^2join ^2the ^2match.\n^7Your IP exists within a known VPN range (^4{player.ip}^7 is in ^4{vpn_network.compressed}^7), if you feel there is a mistake please visit ^3thepurgery.com/discord^7.\n"
     
     def cmd_vpn(self, player, msg, channel):
+        """ Checks to see if the specified player is playing from a known VPN/datacentre-based IP. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 

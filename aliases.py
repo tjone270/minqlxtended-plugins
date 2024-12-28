@@ -16,6 +16,7 @@ class aliases(minqlxtended.Plugin):
 
     @minqlxtended.thread
     def cmd_alias(self, player, msg, channel):
+        """ Provides a list of aliases the server is aware of for the player ID/Steam ID provided. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
@@ -68,6 +69,7 @@ class aliases(minqlxtended.Plugin):
         channel.reply(response)
         
     def cmd_clearaliases(self, player, msg, channel):
+        """ Clears all alias records from the server database. """
         if player.steamid != minqlxtended.owner():
             player.tell("You must be the owner of the server to execute this command.")
             return

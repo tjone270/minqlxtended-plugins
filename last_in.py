@@ -43,7 +43,7 @@ class last_in(minqlxtended.Plugin):
         self.transitioning_players = []
 
     def cmd_last_in(self, player, msg, channel):
-        """ Display the last player who joined whichever team. """
+        """ Display the last players who joined the blue/red team. """
         if self.game.type_short not in SUPPORTED_GAMETYPES:
             channel.reply("The ^6{}^7 game type is not supported by this command.".format(self.game.type_short.upper()))
             return

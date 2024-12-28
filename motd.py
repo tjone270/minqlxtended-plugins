@@ -64,6 +64,7 @@ class motd(minqlxtended.Plugin):
         self.send_motd(player, motd)
 
     def cmd_setmotd(self, player, msg, channel):
+        """ Set the message of the day for this server to the one specified. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
         
@@ -73,6 +74,7 @@ class motd(minqlxtended.Plugin):
         return minqlxtended.RET_STOP_EVENT
 
     def cmd_setmotdall(self, player, msg, channel):
+        """ Set the message of the day for all servers to the one specified. """
         motds = self.db.smembers(MOTD_SET_KEY)
         db = self.db.pipeline()
         for path in motds:
@@ -83,6 +85,7 @@ class motd(minqlxtended.Plugin):
         return minqlxtended.RET_STOP_EVENT
     
     def cmd_getmotd(self, player, msg, channel):
+        """ Shows the current message of the day for this server. """
         if self.motd_key in self.db:
             self.send_motd(player, self.db[self.motd_key])
         else:
@@ -90,17 +93,20 @@ class motd(minqlxtended.Plugin):
         return minqlxtended.RET_STOP_EVENT
 
     def cmd_clearmotd(self, player, msg, channel):
+        """ Clears the message of the day on this server. """
         del self.db[self.motd_key]
         player.tell("The MOTD has been cleared.")
         return minqlxtended.RET_STOP_EVENT
 
     def cmd_clearmotdall(self, player, msg, channel):
+        """ Clears the message of the day on all servers. """
         motds = [MOTD_SET_KEY + ":{}".format(m) for m in self.db.smembers(MOTD_SET_KEY)]
         self.db.delete(*motds)
         player.tell("All MOTDs have been cleared.")
         return minqlxtended.RET_STOP_EVENT
 
     def cmd_addmotd(self, player, msg, channel):
+        """ Appends the specified text to the existing message of the day on this server. """
         motd = self.db[self.motd_key]
         if not motd:
             self.db[self.motd_key] = " ".join(msg[1:])
@@ -113,6 +119,7 @@ class motd(minqlxtended.Plugin):
         return minqlxtended.RET_STOP_EVENT
 
     def cmd_addmotdall(self, player, msg, channel):
+        """ Appends the specified text to the existing message of the day on all servers. """
         motds = self.db.smembers(MOTD_SET_KEY)
         for path in motds:
             motd_key = MOTD_SET_KEY + ":{}".format(path)

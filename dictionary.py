@@ -19,6 +19,7 @@ class dictionary(minqlxtended.Plugin):
         
     @minqlxtended.thread
     def cmd_define_term(self, player, msg, channel):
+        """ Provides the Urban Dictionary definition for the term provided. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
