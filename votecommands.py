@@ -22,10 +22,9 @@ class votecommands(minqlxtended.Plugin):
         """ Forces the current vote. """
         command = msg[0].lower().replace(self.get_cvar("qlx_commandPrefix"), "")
         
+        action = False
         if command == "yes" or command == "pass":
-            action = True
-        elif command == "no" or command == "veto":
-            action = False
+            action = True            
 
         self.do_vote(player, action)
         return minqlxtended.RET_STOP_ALL
