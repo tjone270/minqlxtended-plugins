@@ -20,6 +20,7 @@
 import minqlxtended
 import os.path
 from datetime import datetime
+from html import escape
 
 class docs(minqlxtended.Plugin):
     def __init__(self):
@@ -61,15 +62,15 @@ class docs(minqlxtended.Plugin):
                         name_alias = prefix + alias if cmd.prefix else alias
                         out += f"<code>{name_alias}</code>, "
                     out = out[:-2] + ")"
-                out += f" from plug-in <em>{cmd.plugin.__class__.__name__}</em>\n"
+                out += f" from plug-in <em>{cmd.plugin.__class__.__name__}</em>.\n"
                 
                 # Docstring.
                 if cmd.handler.__doc__:
-                    out += f"    <p><pre>{cmd.handler.__doc__.strip()}</pre></p>\n"
+                    out += f'    <p class="font-monospace">{cmd.handler.__doc__.strip()}</p>\n'
 
                 # Usage
                 if cmd.usage:
-                    out += f"    <p><em>Usage</em>: <code>{name} {cmd.usage}</code></p>\n"
+                    out += f"    <p><em>Usage</em>: <code>{name} {escape(cmd.usage)}</code></p>\n"
 
                 out += "  </li>\n"
             out += "</ul>\n"
