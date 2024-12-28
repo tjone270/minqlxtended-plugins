@@ -887,15 +887,14 @@ class essentials(minqlxtended.Plugin):
     
     def send_player_list(self, target_player, ease_sight = False):
         players = self.players()
+        target_player.tell("^6 Steam ID            ID    Ping  Perm  Player")
         for player in players:
-            player_permission = self.db.get_permission(player)
-            perm_char = " "
+            type_chars = [f"^{str(self.db.get_permission(player))*2}^7", " "]
             if player.steam_id == minqlxtended.owner(): 
-                perm_char = "M" # owner (master)
+                type_chars[1] = "*" # owner
             elif player.is_bot:
-                perm_char = "B" # bot
-            else:
-                perm_char = player_permission
+                type_chars[0] = ""
+                type_chars[1] = "ʙ" # bot
 
             ping_colour = "7"
             if player.ping > 160:
@@ -905,7 +904,7 @@ class essentials(minqlxtended.Plugin):
             elif player.ping > 0:
                 ping_colour = "2"
 
-            line = " {0.steam_id} | {0.id:>2} | ^{1}{0.ping:>3}ms^7 | ^{2}{3}^7 | {0.name}".format(player, ping_colour, player_permission if player_permission != 0 else 7, perm_char)
+            line = f" {player.steam_id} | {player.id:>2} | ^{ping_colour}{player.ping:>3}ms^7 | {''.join(type_chars)} | {player.name}"
             
             if ease_sight: # fenix849
                 line = line.replace(" ", ".")
