@@ -25,9 +25,9 @@ from html import escape
 class docs(minqlxtended.Plugin):
     def __init__(self):
         super().__init__()
-        self.add_command("gencmd", self.cmd_gencmd, permission=5, usage="[excluded_plugins]")
+        self.add_command("gendocs", self.cmd_gendocs, permission=5, usage="[excluded_plugins]")
 
-    def cmd_gencmd(self, players, msg, channel):
+    def cmd_gendocs(self, players, msg, channel):
         """Generate a command list based on currently loaded plugins in HTML with Twig filtering."""
         if len(msg) > 1:
             excluded = [s.lower() for s in msg[1:]]
