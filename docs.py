@@ -50,7 +50,7 @@ class docs(minqlxtended.Plugin):
             if perm:
                 out += f"{{% if permissionLevel >= {perm} %}}\n"
 
-            out += f"<h2>Permission level <strong>{perm}</strong>:</h2>\n"
+            out += f"<h3>Permission level <strong>{perm}</strong>:</h3>\n"
             out += "<ul>\n"
             for cmd in sorted(cmds[perm], key=lambda x: x.plugin.__class__.__name__):
                 out += "  <li>\n"
