@@ -14,7 +14,6 @@ from textwrap import shorten
 class dictionary(minqlxtended.Plugin):
     def __init__(self):
         self.add_command("define", self.cmd_define_term, usage="<term>")
-        self.add_command("tomtec_versions", self.cmd_showversion)
         self.plugin_version = "1.5"
         
     @minqlxtended.thread

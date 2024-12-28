@@ -32,8 +32,6 @@ class branding(minqlxtended.Plugin):
         self.add_hook("game_countdown", self.game_countdown)
         self.add_hook("game_end", self.game_end)
         
-        self.add_command("tomtec_versions", self.cmd_showversion)
-
         self.set_cvar_once("qlx_brandingPrependMapName", "0")
         self.set_cvar_once("qlx_brandingAppendGameType", "0")
         self.set_cvar_once("qlx_rainbowBrandName", "0")

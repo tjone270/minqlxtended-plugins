@@ -10,7 +10,6 @@ class tp_fun(minqlxtended.Plugin):
         self.add_command(("msg", "message"), self.cmd_screenmessage, 1, usage="[id] <text>") # Merozollo requested
         self.add_command("smile", self.cmd_elated_emoji) # Purger requested
         self.add_command("pentagram", self.cmd_pentagram, 1, usage="<id>") # Merozollo requested
-        self.add_command("tomtec_versions", self.cmd_showversion)
         self.add_command("purger", self.cmd_purger)
         self.add_command(("vaginadepth", "vaginaldepth", "vagdep"), self.cmd_vagdep)
         self.add_command(("penislength", "penlen"), self.cmd_penlen)

@@ -13,7 +13,6 @@ class votestats(minqlxtended.Plugin):
         self.add_hook("vote_ended", self.handle_vote_ended, priority=minqlxtended.PRI_LOWEST)
 
         self.add_command("votes", self.cmd_votes)
-        self.add_command("tomtec_versions", self.cmd_showversion)
 
         self.set_cvar_once("qlx_privatiseVotes", "0")
 

@@ -8,7 +8,6 @@ class aliases(minqlxtended.Plugin):
     def __init__(self):
         self.add_command("alias", self.cmd_alias, usage="<id>")
         self.add_command("clearaliases", self.cmd_clearaliases, 5)
-        self.add_command("tomtec_versions", self.cmd_showversion)
 
         self.set_cvar_once("qlx_aliasLimitOutputLines", "15") 
 

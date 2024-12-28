@@ -36,9 +36,9 @@ class queue(minqlxtended.Plugin):
         self.add_command(("teamsize", "ts"), self.cmd_teamsize, priority=minqlxtended.PRI_HIGH)
 
         # Commands for debugging
-        self.add_command("qpush", self.cmd_qpush, 5)
-        self.add_command("qadd", self.cmd_qadd, 5, usage="<id>")
-        self.add_command("qupd", self.cmd_qupd, 5)
+        #self.add_command("qpush", self.cmd_qpush, 5)
+        #self.add_command("qadd", self.cmd_qadd, 5, usage="<id>")
+        #self.add_command("qupd", self.cmd_qupd, 5)
 
         self._queue = []
         self._afk = []

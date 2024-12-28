@@ -9,7 +9,6 @@ class votecommands(minqlxtended.Plugin):
     def __init__(self):
         self.add_hook("client_command", self.handle_client_command)
 
-        self.add_command("tomtec_versions", self.cmd_showversion)
         self.add_command(("yes", "no", "pass", "veto"), self.cmd_force_vote, 3, priority=minqlxtended.PRI_HIGHEST)
         self.plugin_version = "1.3"
 
