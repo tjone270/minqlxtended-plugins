@@ -33,6 +33,7 @@ TIME_FORMAT = "%H:%M:%S"
 class essentials(minqlxtended.Plugin):
     def __init__(self):
         super().__init__()
+        self.add_hook("map", self.handle_map)
         self.add_hook("player_connect", self.handle_player_connect)
         self.add_hook("player_disconnect", self.handle_player_disconnect)
         self.add_hook("vote_called", self.handle_vote_called)
@@ -108,6 +109,21 @@ class essentials(minqlxtended.Plugin):
             if os.path.isfile(mpbase):
                 self.mappool = self.parse_mappool(mpbase)
 
+        self._cache_variables()
+
+
+    def _cache_variables(self):
+        """ we do this to prevent lots of unnecessary engine calls """
+        self._qlx_commandPrefix = self.get_cvar("qlx_commandPrefix")
+        self._qlx_teamsizeMaximum = self.get_cvar("qlx_teamsizeMaximum", int)
+        self._qlx_teamsizeMinimum = self.get_cvar("qlx_teamsizeMinimum", int)
+        self._qlx_enforceMappool = self.get_cvar("qlx_enforceMappool", bool)
+        self._qlx_votepass = self.get_cvar("qlx_votepass", bool)
+        self._qlx_votepassThreshold = self.get_cvar("qlx_votepassThreshold", float)
+
+    def handle_map(self, mapname, factory):
+        self._cache_variables()
+
     def handle_player_connect(self, player):
         self.update_player(player)
 
@@ -116,22 +132,23 @@ class essentials(minqlxtended.Plugin):
         self.update_seen_player(player)
 
     def handle_vote_called(self, caller, vote, args):
-        # Enforce teamsizes.
-        if vote.lower() == "teamsize":
+        # Enforce teamsize min/max limits.
+        vote = vote.lower().strip()
+        if vote == "teamsize":
             try:
                 args = int(args)
             except ValueError:
                 return
             
-            if args > self.get_cvar("qlx_teamsizeMaximum", int):
-                caller.tell("The team size is larger than what the server allows.")
+            if args > self._qlx_teamsizeMaximum:
+                caller.tell(f"The team size is larger than what the server allows (maximum of ^6{self._qlx_teamsizeMaximum}^7)")
                 return minqlxtended.RET_STOP_ALL
-            elif args < self.get_cvar("qlx_teamsizeMinimum", int):
-                caller.tell("The team size is smaller than what the server allows.")
+            elif args < self._qlx_teamsizeMinimum:
+                caller.tell(f"The team size is smaller than what the server allows (minimum of ^6{self._qlx_teamsizeMinimum}^7.)")
                 return minqlxtended.RET_STOP_ALL
         
         # Enforce map pool.
-        if vote.lower() == "map" and self.mappool and self.get_cvar("qlx_enforceMappool", bool):
+        if (vote == "map") and (self.mappool) and (self._qlx_enforceMappool):
             split_args = args.split()
             if len(split_args) == 0:
                 caller.tell("Available maps and factories:")
@@ -142,28 +159,27 @@ class essentials(minqlxtended.Plugin):
             factory = split_args[1] if len(split_args) > 1 else self.game.factory
             if map_name in self.mappool:
                 if factory and factory not in self.mappool[map_name]:
-                    caller.tell("This factory is not allowed on that map. Use {}mappool to see available options."
-                        .format(self.get_cvar("qlx_commandPrefix")))
+                    caller.tell(f"This factory is not allowed on that map. Use ^6{self._qlx_commandPrefix}mappool^7 to see available options.")
                     return minqlxtended.RET_STOP_ALL
             else:
-                caller.tell("This map is not allowed. Use {}mappool to see available options."
-                    .format(self.get_cvar("qlx_commandPrefix")))
+                caller.tell(f"This map is not allowed. Use ^6{self._qlx_commandPrefix}mappool^7 to see available options.")
                 return minqlxtended.RET_STOP_ALL
         
         # Automatic vote passing.
-        if self.get_cvar("qlx_votepass", bool):
+        if self._qlx_votepass:
             self.last_vote = next(self.vote_count)
-            self.force(self.get_cvar("qlx_votepassThreshold", float), self.last_vote)
+            self.force(self._qlx_votepassThreshold, self.last_vote)
 
     def handle_command(self, caller, command, args):
         self.recent_cmds.appendleft((caller, command, args))
 
     def handle_client_command(self, player, command):
-        if command.lower() == "players":
+        command = command.lower().strip()
+        if command == "players":
             self.send_player_list(player)
             return minqlxtended.RET_STOP_ALL
-        elif command.lower() == "players.":
-            self.send_player_list(player, True)
+        elif command == "players.":
+            self.send_player_list(player, ease_sight=True)
             return minqlxtended.RET_STOP_ALL
 
     def cmd_list_players(self, player, msg, channel):
@@ -176,10 +192,10 @@ class essentials(minqlxtended.Plugin):
         if len(self.recent_dcs) == 0:
             player.tell("No players have disconnected yet.")
         else:
-            player.tell("The most recent ^6{}^7 player disconnects:".format(len(self.recent_dcs)))
+            player.tell(f"The most recent ^6{len(self.recent_dcs)}^7 player disconnects:")
             for x in self.recent_dcs:
                 p, t = x
-                player.tell("  {} ({}): ^6{}^7 seconds ago".format(p.name, p.steam_id, round(time.time() - t)))
+                player.tell(f"  {p.name} ({p.steam_id}): ^6{round(time.time() - t)}^7 seconds ago")
 
         return minqlxtended.RET_STOP_ALL
 
@@ -188,9 +204,9 @@ class essentials(minqlxtended.Plugin):
         if len(self.recent_cmds) == 1:
             player.tell("No commands have been recorded yet.")
         else:
-            player.tell("The most recent ^6{}^7 commands executed:".format(len(self.recent_cmds) - 1))
+            player.tell(f"The most recent ^6{len(self.recent_cmds) - 1}^7 commands executed:")
             for cmd in list(self.recent_cmds)[1:]:
-                player.tell("  {} executed: {}".format(cmd[0].name, cmd[2]))
+                player.tell(f"  {cmd[0].name} executed: {cmd[2]}")
 
         return minqlxtended.RET_STOP_ALL
 
@@ -255,11 +271,9 @@ class essentials(minqlxtended.Plugin):
         self.db.set_flag(player, "essentials:sounds_enabled", not flag)
         
         if flag:
-            player.tell("Sounds have been disabled. Use ^6{}sounds^7 to enable them again."
-                .format(self.get_cvar("qlx_commandPrefix")))
+            player.tell(f"Sounds have been disabled. Use ^6{self._qlx_commandPrefix}sounds^7 to enable them again.")
         else:
-            player.tell("Sounds have been enabled. Use ^6{}sounds^7 to disable them again."
-                .format(self.get_cvar("qlx_commandPrefix")))
+            player.tell(f"Sounds have been enabled. Use ^6{self._qlx_commandPrefix}sounds^7 to disable them again.")
 
         return minqlxtended.RET_STOP_ALL
 
@@ -269,8 +283,7 @@ class essentials(minqlxtended.Plugin):
             return minqlxtended.RET_USAGE
 
         if not self.db.get_flag(player, "essentials:sounds_enabled", default=True):
-            player.tell("Sounds are disabled. Use ^6{}sounds^7 to enable them again."
-                .format(self.get_cvar("qlx_commandPrefix")))
+            player.tell(f"Sounds are disabled. Use ^6{self._qlx_commandPrefix}sounds^7 to enable them again.")
             return minqlxtended.RET_STOP_ALL
 
         # Play locally to validate.
@@ -293,8 +306,7 @@ class essentials(minqlxtended.Plugin):
             return minqlxtended.RET_USAGE
 
         if not self.db.get_flag(player, "essentials:sounds_enabled", default=True):
-            player.tell("Sounds are disabled. Use ^6{}sounds^7 to enable them again."
-                .format(self.get_cvar("qlx_commandPrefix")))
+            player.tell(f"Sounds are disabled. Use ^6{self._qlx_commandPrefix}sounds^7 to enable them again.")
             return minqlxtended.RET_STOP_ALL
 
         # Play locally to validate.
@@ -314,8 +326,7 @@ class essentials(minqlxtended.Plugin):
     def cmd_stopsound(self, player, msg, channel):
         """ Stops all sounds playing. Useful if someone plays one of those really long ones. """
         if not self.db.get_flag(player, "essentials:sounds_enabled", default=True):
-            player.tell("Sounds are disabled. Use ^6{}sounds^7 to enable them again."
-                .format(self.get_cvar("qlx_commandPrefix")))
+            player.tell(f"Sounds are disabled. Use ^6{self._qlx_commandPrefix}sounds^7 to enable them again.")
             return minqlxtended.RET_STOP_ALL
 
         self.stop_sound()
@@ -323,8 +334,7 @@ class essentials(minqlxtended.Plugin):
     def cmd_stopmusic(self, player, msg, channel):
         """ Stops any music playing. """
         if not self.db.get_flag(player, "essentials:sounds_enabled", default=True):
-            player.tell("Sounds are disabled. Use ^6{}sounds^7 to enable them again."
-                .format(self.get_cvar("qlx_commandPrefix")))
+            player.tell(f"Sounds are disabled. Use ^6{self._qlx_commandPrefix}sounds^7 to enable them again.")
             return minqlxtended.RET_STOP_ALL
 
         self.stop_music()
@@ -384,17 +394,16 @@ class essentials(minqlxtended.Plugin):
             return minqlxtended.RET_USAGE
         
         try:
-            n = randint(1,int(msg[1]))
+            n = randint(1, int(msg[1]))
         except ValueError:
             player.tell("Invalid upper limit. Use a positive integer.")
             return minqlxtended.RET_STOP_ALL
         
-        channel.reply("^3Random number is: ^5{}".format(n))
+        channel.reply(f"^3Random number is: ^5{n}^7")
         
     def cmd_cointoss(self, player, msg, channel):
         """ Tosses a coin, and returns HEADS or TAILS in chat. """
-        n = randint(0,1)
-        channel.reply("^3The coin is: ^5{}".format("HEADS" if n else "TAILS"))
+        channel.reply(f'^3The coin is: ^5{"HEADS" if randint(0, 1) else "TAILS"}^7')
         
     def cmd_switch(self, player, msg, channel):
         """ Switches the teams of the two players specified. """
@@ -623,7 +632,7 @@ class essentials(minqlxtended.Plugin):
         
     def cmd_help(self, player, msg, channel):
         """ Provide minqlxtended version information. """
-        channel.reply("minqlxtended: ^6{}^7 - Plugins: ^6{}".format(minqlxtended.__version__, minqlxtended.__plugins_version__))
+        channel.reply(f"minqlxtended: ^6{minqlxtended.__version__}^7 - Plugins: ^6{minqlxtended.__plugins_version__}")
         channel.reply("See ^4github.com/tjone270/minqlxtended^7 for more information.")
 
     def cmd_first_seen(self, player, msg, channel):
@@ -649,27 +658,20 @@ class essentials(minqlxtended.Plugin):
         else:
             name = "that player" if steam_id != minqlxtended.owner() else "my ^4master^7"
 
-        key = "minqlx:players:{}:first_seen".format(steam_id)
+        key = f"minqlx:players:{steam_id}:first_seen"
         if key in self.db:
             then = datetime.datetime.strptime(self.db[key], DATETIME_FORMAT)
             td = datetime.datetime.now() - then
             r = re.match(r'((?P<d>.*) days*, )?(?P<h>..?):(?P<m>..?):.+', str(td))
             if r.group("d"):
-                channel.reply("^7I first saw {} ^6{}^7 day{}, ^6{}^7 hour{} and ^6{}^7 minute{} ago."
-                    .format(name,
-                            int(r.group("d")), self.plural(r.group("d")),
-                            int(r.group("h")), self.plural(r.group("h")),
-                            int(r.group("m")), self.plural(r.group("m"))))
+                channel.reply(f"^7I first saw {name} ^6{int(r.group('d'))}^7 day{self.plural(r.group('d'))}, ^6{int(r.group('h'))}^7 hour{self.plural(r.group('h'))} and ^6{int(r.group('m'))}^7 minute{self.plural(r.group('m'))} ago.")
             else:
-                channel.reply("^7I first saw {} ^6{}^7 hour{} and ^6{}^7 minute{} ago."
-                    .format(name,
-                            int(r.group("h")), self.plural(r.group("h")),
-                            int(r.group("m")), self.plural(r.group("m"))))
+                channel.reply(f"^7I first saw {name} ^6{int(r.group('h'))}^7 hour{self.plural(r.group('h'))} and ^6{int(r.group('m'))}^7 minute{self.plural(r.group('m'))} ago.")
         else:
-            if "minqlx:players:{}".format(steam_id) in self.db:
+            if f"minqlx:players:{steam_id}" in self.db:
                 channel.reply("^7That player is ^6too old^7 to have that date recorded.")
             else:
-                channel.reply("^7I have never seen ^6{}^7 before.".format(name))
+                channel.reply(f"^7I have never seen ^6{name}^7 before.")
 
     def cmd_last_seen(self, player, msg, channel):
         """ Responds with the last time a player was seen on the server. """
@@ -687,28 +689,21 @@ class essentials(minqlxtended.Plugin):
         
         p = self.player(steam_id)
         if p:
-            channel.reply("That would be {}^7, who is currently on this very server!".format(p))
+            channel.reply(f"That would be {p.name}^7, who is currently on this very server!")
             return
         
-        key = "minqlx:players:{}:last_seen".format(steam_id)
+        key = f"minqlx:players:{steam_id}:last_seen"
         name = "that player" if steam_id != minqlxtended.owner() else "my ^6master^7"
         if key in self.db:
             then = datetime.datetime.strptime(self.db[key], DATETIME_FORMAT)
             td = datetime.datetime.now() - then
             r = re.match(r'((?P<d>.*) days*, )?(?P<h>..?):(?P<m>..?):.+', str(td))
             if r.group("d"):
-                channel.reply("^7I last saw {} ^6{}^7 day{}, ^6{}^7 hour{} and ^6{}^7 minute{} ago."
-                    .format(name,
-                            int(r.group("d")), self.plural(r.group("d")),
-                            int(r.group("h")), self.plural(r.group("h")),
-                            int(r.group("m")), self.plural(r.group("m"))))
+                channel.reply(f"^7I last saw {name} ^6{int(r.group('d'))}^7 day{self.plural(r.group('d'))}, ^6{int(r.group('h'))}^7 hour{self.plural(r.group('h'))} and ^6{int(r.group('m'))}^7 minute{self.plural(r.group('m'))} ago.")
             else:
-                channel.reply("^7I last saw {} ^6{}^7 hour{} and ^6{}^7 minute{} ago."
-                    .format(name,
-                            int(r.group("h")), self.plural(r.group("h")),
-                            int(r.group("m")), self.plural(r.group("m"))))
+                channel.reply(f"^7I last saw {name} ^6{int(r.group('h'))}^7 hour{self.plural(r.group('h'))} and ^6{int(r.group('m'))}^7 minute{self.plural(r.group('m'))} ago.")
         else:
-            channel.reply("^7I have never seen {} before.".format(name))
+            channel.reply(f"^7I have never seen {name} before.")
 
     def cmd_time(self, player, msg, channel):
         """ Responds with the current time. """
@@ -723,17 +718,14 @@ class essentials(minqlxtended.Plugin):
         tz = datetime.timezone(offset=datetime.timedelta(hours=tz_offset))
         now = datetime.datetime.now(tz)
         if tz_offset > 0:
-            channel.reply("The current time is: ^6{} UTC+{}"
-                .format(now.strftime(TIME_FORMAT), tz_offset))
+            channel.reply(f"The current time is: ^6{now.strftime(TIME_FORMAT)} UTC+{tz_offset}")
         elif tz_offset < 0:
-            channel.reply("The current time is: ^6{} UTC{}"
-                .format(now.strftime(TIME_FORMAT), tz_offset))
+            channel.reply(f"The current time is: ^6{now.strftime(TIME_FORMAT)} UTC{tz_offset}")
         else:
-            channel.reply("The current time is: ^6{} UTC"
-                .format(now.strftime(TIME_FORMAT)))
+            channel.reply(f"The current time is: ^6{now.strftime(TIME_FORMAT)} UTC")
 
     def cmd_teamsize(self, player, msg, channel):
-        """ Alters the teamsize to that specified. """
+        """ Alters the teamsize to that specified. If 0 is specified, remove the teamsize restriction. """
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
         
@@ -743,8 +735,18 @@ class essentials(minqlxtended.Plugin):
             channel.reply("^7Unintelligible size.")
             return
         
+        if n < 0: # don't know why this would be attempted - but nice to harden against unexpected behaviour
+            channel.reply("The teamsize must be a positive number.")
+            return
+        elif n > 64: # imaginary maximum - insane to go higher.
+            channel.reply("The teamsize must be less than 64.") 
+        
         self.game.teamsize = n
-        self.msg("The teamsize has been set to ^6{}^7 by {}^7.".format(n, player))
+        if n:
+            self.msg(f"The teamsize has been set to ^6{n}^7 by {player.name}^7.")
+        else:
+            self.msg(f"The teamsize has been set to ^6unrestricted^7 by {player.name}^7.")
+
         return minqlxtended.RET_STOP_ALL
 
     def cmd_rcon(self, player, msg, channel):
@@ -763,7 +765,7 @@ class essentials(minqlxtended.Plugin):
 
         self.tell_mappool(player)
 
-        if not self.get_cvar("qlx_enforceMappool", bool):
+        if not self._qlx_enforceMappool:
             player.tell("No map pool is currently enforced. You are free to vote any map.")
 
         return minqlxtended.RET_STOP_ALL
@@ -778,20 +780,20 @@ class essentials(minqlxtended.Plugin):
         and adds entries to the player list and IP entries.
 
         """
-        base_key = "minqlx:players:" + str(player.steam_id)
+        base_key = f"minqlx:players:{str(player.steam_id)}"
         db = self.db.pipeline()
         
         # Add to IP set and make IP entry.
         if player.ip:
             db.sadd("minqlx:ips", player.ip)
-            db.sadd("minqlx:ips:" + player.ip, player.steam_id)
-            db.sadd(base_key + ":ips", player.ip)
+            db.sadd(f"minqlx:ips:{player.ip}", player.steam_id)
+            db.sadd(f"{base_key}:ips", player.ip)
         
         # Make or update player entry.
         if base_key not in self.db:
             db.lpush(base_key, player.name)
             db.sadd("minqlx:players", player.steam_id)
-            db.set(base_key + ":first_seen", datetime.datetime.now().strftime(DATETIME_FORMAT))
+            db.set(f"{base_key}:first_seen", datetime.datetime.now().strftime(DATETIME_FORMAT))
         else:
             names = [self.clean_text(n) for n in self.db.lrange(base_key, 0, -1)]
             if player.clean_name not in names:
@@ -800,12 +802,12 @@ class essentials(minqlxtended.Plugin):
 
         if player.name:
             # Record the player's latest name.
-            db.set("{}:current_name".format(base_key), player.name)
+            db.set(f"{base_key}:current_name", player.name)
         
         db.execute()
 
     def update_seen_player(self, player):
-        key = "minqlx:players:" + str(player.steam_id) + ":last_seen"
+        key = f"minqlx:players:{str(player.steam_id)}:last_seen"
         self.db[key] = datetime.datetime.now().strftime(DATETIME_FORMAT)
         
     @minqlxtended.delay(29)
@@ -856,8 +858,7 @@ class essentials(minqlxtended.Plugin):
     def tell_mappool(self, player, indent=0):
         out = ""
         for m in sorted(self.mappool.items(), key=lambda x: x[0]):
-            out += ("Map: {0}^6{1:25}^7 Factories: ^6{2}^7\n"
-                .format(" " * indent, m[0], ", ".join(val for val in m[1])))
+            out += f"Map: {' ' * indent}^6{m[0]:25}^7 Factories: ^6{', '.join(val for val in m[1])}^7\n"
         player.tell(out.rstrip("\n"))
 
     def plural(self, sample):
