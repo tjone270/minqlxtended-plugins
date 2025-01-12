@@ -49,9 +49,9 @@ class silence(minqlxtended.Plugin):
         self.silenced[player.steam_id] = (expires, score, reason)
         player.mute()
         if reason:
-            player.tell("You have been silenced on this server until ^6{}^7: {}".format(expires, reason))
+            player.tell(f"You have been silenced on this server until ^6{expires}^7: {reason}")
         else:
-            player.tell("You have been silenced on this server until ^6{}^7.".format(expires))
+            player.tell(f"You have been silenced on this server until ^6{expires}^7.")
 
     def handle_player_disconnect(self, player, reason):
         if player.steam_id in self.silenced:
@@ -61,14 +61,15 @@ class silence(minqlxtended.Plugin):
         """ Prevent a silenced player from using `say` or `say_team`. """
         if player.steam_id not in self.silenced:
             return
-
-        if (cmd.lower().startswith("say ") or cmd.lower().startswith("say_team ")):
+        
+        cmd = cmd.lower().strip()
+        if (cmd.startswith("say ") or cmd.startswith("say_team ")):
             expires, score, reason = self.silenced[player.steam_id]
             if time.time() < score:
                 if reason:
-                    player.tell("You have been silenced on this server until ^6{}^7: {}".format(expires, reason))
+                    player.tell(f"You have been silenced on this server until ^6{expires}^7: {reason}")
                 else:
-                    player.tell("You have been silenced on this server until ^6{}^7.".format(expires))
+                    player.tell(f"You have been silenced on this server until ^6{expires}^7.")
             else:
                 del self.silenced[player.steam_id]
                 player.unmute()
@@ -97,9 +98,9 @@ class silence(minqlxtended.Plugin):
         expires, score, reason = self.silenced[caller.steam_id]
         if time.time() < score:
             if reason:
-                caller.tell("You have been silenced on this server until ^6{}^7: {}".format(expires, reason))
+                caller.tell(f"You have been silenced on this server until ^6{expires}^7: {reason}")
             else:
-                caller.tell("You have been silenced on this server until ^6{}^7.".format(expires))
+                caller.tell(f"You have been silenced on this server until ^6{expires}^7.")
 
         return minqlxtended.RET_STOP_ALL
 
@@ -127,7 +128,7 @@ class silence(minqlxtended.Plugin):
             name = ident
 
         if self.db.has_permission(ident, 2):
-            channel.reply("^6{}^7 has permission level 2 or more and cannot be silenced.".format(name))
+            channel.reply(f"^6{name}^7 has permission level 2 or more and cannot be silenced.")
             return
 
         if len(msg) > 4:
@@ -159,13 +160,18 @@ class silence(minqlxtended.Plugin):
 
             now = datetime.datetime.now().strftime(TIME_FORMAT)
             expires = (datetime.datetime.now() + td).strftime(TIME_FORMAT)
-            base_key = PLAYER_KEY.format(ident) + ":silences"
+            base_key = f"{PLAYER_KEY.format(ident)}:silences"
             silence_id = self.db.zcard(base_key)
             score = time.time() + td.total_seconds()
             db = self.db.pipeline()
             db.zadd(base_key, {silence_id: score})
-            silence = {"expires": expires, "reason": reason, "issued": now, "issued_by": player.steam_id}
-            db.hmset(base_key + ":{}".format(silence_id), silence)
+            silence = {
+                "expires": expires,
+                "reason": reason,
+                "issued": now,
+                "issued_by": player.steam_id
+            }
+            db.hmset(f"{base_key}:{silence_id}", silence)
             db.execute()
 
             if target_player:
@@ -174,7 +180,7 @@ class silence(minqlxtended.Plugin):
                     target_player.mute()
                 except ValueError:
                     pass
-            channel.reply("^6{}^7 has been silenced. Silence expires on ^6{}^7.".format(name, expires))
+            channel.reply(f"^6{name}^7 has been silenced. Silence expires on ^6{expires}^7.")
 
     def cmd_unsilence(self, player, msg, channel):
         """ Unsilences a player if silenced. """
@@ -201,10 +207,10 @@ class silence(minqlxtended.Plugin):
         else:
             name = ident
 
-        base_key = PLAYER_KEY.format(ident) + ":silences"
+        base_key = f"{PLAYER_KEY.format(ident)}:silences"
         silences = self.db.zrangebyscore(base_key, time.time(), "+inf", withscores=True)
         if not silences:
-            channel.reply("^7No active silences on ^6{}^7 found.".format(name))
+            channel.reply(f"^7No active silences on ^6{name}^7 found.")
         else:
             db = self.db.pipeline()
             for silence_id, score in silences:
@@ -214,7 +220,7 @@ class silence(minqlxtended.Plugin):
                 del self.silenced[ident]
             if target_player:
                 target_player.unmute()
-            channel.reply("^6{}^7 has been unsilenced.".format(name))
+            channel.reply(f"^6{name}^7 has been unsilenced.")
 
     def cmd_checksilence(self, player, msg, channel):
         """ Checks whether a player has been silenced, and if so, why. """
@@ -242,28 +248,27 @@ class silence(minqlxtended.Plugin):
         # Check manual silences first.
         res = self.is_silenced(ident)
         if res:
-            expires, score, reason = res
+            expires, _, reason = res
             if reason:
-                channel.reply(
-                    "^6{}^7 is silenced until ^6{}^7 for the following reason: ^6{}^7".format(name, expires, reason))
+                channel.reply(f"^6{name}^7 is silenced until ^6{expires}^7 for the following reason: ^6{reason}^7")
             else:
-                channel.reply("^6{}^7 is silenced until ^6{}^7.".format(name, expires))
+                channel.reply(f"^6{name}^7 is silenced until ^6{expires}^7.")
             return
 
-        channel.reply("^6{}^7 is not silenced.".format(name))
+        channel.reply(f"^6{name}^7 is not silenced.")
 
     # ====================================================================
     #                               HELPERS
     # ====================================================================
 
     def is_silenced(self, steam_id):
-        base_key = PLAYER_KEY.format(steam_id) + ":silences"
+        base_key = f"{PLAYER_KEY.format(steam_id)}:silences"
         silences = self.db.zrangebyscore(base_key, time.time(), "+inf", withscores=True)
         if not silences:
             return None
 
         silence_id, score = silences[-1]
-        longest_silence = self.db.hgetall(base_key + ":{}".format(silence_id))
+        longest_silence = self.db.hgetall(f"{base_key}:{silence_id}")
         expires = datetime.datetime.strptime(longest_silence["expires"], TIME_FORMAT)
         if (expires - datetime.datetime.now()).total_seconds() > 0:
             return expires, score, longest_silence["reason"]

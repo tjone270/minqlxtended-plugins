@@ -11,7 +11,9 @@ class aliases(minqlxtended.Plugin):
 
         self.set_cvar_once("qlx_aliasLimitOutputLines", "15") 
 
-        self.plugin_version = "2.0"
+        self.plugin_version = "2.1"
+
+        self._linelimit = self.get_cvar("qlx_aliasLimitOutputLines", int)
 
     @minqlxtended.thread
     def cmd_alias(self, player, msg, channel):
@@ -24,11 +26,11 @@ class aliases(minqlxtended.Plugin):
             if 0 <= ident < 64:
                 steam_id = self.player(ident).steam_id
                 player_name = self.player(ident).name
-                player_iplist = list(self.db.smembers("minqlx:players:{}:ips".format(steam_id)))
+                player_iplist = list(self.db.smembers(f"minqlx:players:{steam_id}:ips"))
             else:
                 steam_id = ident
                 player_name = ident
-            player_iplist = list(self.db.smembers("minqlx:players:{}:ips".format(steam_id)))
+            player_iplist = list(self.db.smembers(f"minqlx:players:{steam_id}:ips"))
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
@@ -40,28 +42,27 @@ class aliases(minqlxtended.Plugin):
         steamids = list()
 
         for ip_address in player_iplist:
-            steamids += list(self.db.smembers("minqlx:ips:{}".format(ip_address)))
+            steamids += list(self.db.smembers(f"minqlx:ips:{ip_address}"))
         
         steamids = self.dedupe(steamids)
 
         for steamid in steamids:
-            data[steamid] = list(self.db.lrange("minqlx:players:{}".format(steamid), 0, -1))
+            data[steamid] = list(self.db.lrange(f"minqlx:players:{steamid}", 0, -1))
         
-        linelimit = self.get_cvar("qlx_aliasLimitOutputLines", int)
         lineused = 1
-        response = "{}^7's aliases:\n".format(player_name)
+        response = f"{player_name}^7's aliases:\n"
 
         for sid, names in data.items():
-            if lineused == linelimit:
+            if lineused == self._linelimit:
                 break
             used_names = list()
-            response += " ^6•^7 {}:\n".format(sid)
+            response += f" ^6•^7 {sid}:\n"
             for name in names:
                 if name not in used_names:
-                    if lineused == linelimit:
-                        response += "^1Remaining aliases truncated (line limit set to {})^7\n".format(linelimit)
+                    if lineused == self._linelimit:
+                        response += f"^1Remaining aliases truncated (line limit set to {self._linelimit})^7\n"
                         break
-                    response += "    ^6•^7 {}\n".format(self.clean_text(name))
+                    response += f"    ^6•^7 {self.clean_text(name)}\n"
                     lineused += 1
                     used_names.append(name)
 
@@ -75,11 +76,11 @@ class aliases(minqlxtended.Plugin):
 
         players = self.db.smembers("minqlx:players")
         for p in players:
-            del self.db["minqlx:players:{}".format(p)]
-        channel.reply("All aliases for all players ({} players in total) were cleared.".format(len(players)))
+            del self.db[f"minqlx:players:{p}"]
+        channel.reply(f"All aliases for all players ({len(players)} players in total) were cleared.")
 
     def dedupe(self, lst):
         return list(dict.fromkeys(lst))
 
     def cmd_showversion(self, player, msg, channel):
-        channel.reply("^4aliases.py^7 - version {}, created by Thomas Jones on 14/12/2015.".format(self.plugin_version))
+        channel.reply(f"^4aliases.py^7 - version {self.plugin_version}, created by Thomas Jones on 14/12/2015.")

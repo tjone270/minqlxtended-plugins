@@ -52,6 +52,17 @@ class ban(minqlxtended.Plugin):
         self.players_start = []
         self.pending_warnings = {}
 
+        self._cache_variables()
+
+
+    def _cache_variables(self):
+        """ we do this to prevent lots of unnecessary engine calls """
+        self._qlx_statOtherPlayersPermission = self.get_cvar("qlx_statOtherPlayersPermission", int)
+        self._qlx_leaverBan = self.get_cvar("qlx_leaverBan", bool)
+        self._qlx_leaverBanMinimumGames = self.get_cvar("qlx_leaverBanMinimumGames", int)
+        self._qlx_leaverBanWarnThreshold = self.get_cvar("qlx_leaverBanWarnThreshold", float)
+        self._qlx_leaverBanThreshold = self.get_cvar("qlx_leaverBanThreshold", float)
+
     def handle_player_connect(self, player):
         status = self.leave_status(player.steam_id)
         # Check if a player has been banned for leaving, if we're doing that.
@@ -66,9 +77,9 @@ class ban(minqlxtended.Plugin):
         if banned:
             expires, reason = banned
             if reason:
-                return "You are banned until {}: {}".format(expires, reason)
+                return f"You are banned until {expires}: {reason}"
             else:
-                return "You are banned until {}.".format(expires)
+                return f"You are banned until {expires}."
 
     @minqlxtended.delay(4)
     def handle_player_loaded(self, player):
@@ -88,7 +99,9 @@ class ban(minqlxtended.Plugin):
             self.players_start.remove(player)
 
     def handle_game_countdown(self):
-        if self.get_cvar("qlx_leaverBan", bool):
+        self._cache_variables()
+
+        if self._qlx_leaverBan:
             self.msg("Leavers are being tracked. Repeat offenders ^6will^7 be banned.")
 
     # Needs a delay here because players will sometimes have their teams reset during the event.
@@ -122,7 +135,7 @@ class ban(minqlxtended.Plugin):
         db.execute()
 
         if leavers:
-            self.msg("^7Leavers: ^6{}".format(" ".join([p.clean_name for p in leavers])))
+            self.msg(f'^7Leavers: ^6{" ".join([p.clean_name for p in leavers])}')
             self.players_start = []
 
     def handle_team_switch(self, player, old_team, new_team):
@@ -132,8 +145,7 @@ class ban(minqlxtended.Plugin):
             if len(teams["red"] + teams["blue"]) % 2 == 0 and player in self.players_start:
                 self.players_start.remove(player)
         # Add people to the list of participating players if they join mid-game.
-        if (old_team == "spectator" and (new_team == "red" or new_team == "blue") and
-         self.game.state == "in_progress" and player not in self.players_start):
+        if (old_team == "spectator" and (new_team == "red" or new_team == "blue") and self.game.state == "in_progress" and player not in self.players_start):
             self.players_start.append(player)
 
     def cmd_ban(self, player, msg, channel):
@@ -166,7 +178,7 @@ class ban(minqlxtended.Plugin):
 
         # Permission level 5 players not bannable.
         if self.db.has_permission(ident, 5):
-            channel.reply("^6{}^7 has permission level 5 and cannot be banned.".format(name))
+            channel.reply(f"^6{name}^7 has permission level 5 and cannot be banned.")
             return
 
         if len(msg) > 4:
@@ -198,18 +210,18 @@ class ban(minqlxtended.Plugin):
 
             now = datetime.datetime.now().strftime(TIME_FORMAT)
             expires = (datetime.datetime.now() + td).strftime(TIME_FORMAT)
-            base_key = PLAYER_KEY.format(ident) + ":bans"
+            base_key = f"{PLAYER_KEY.format(ident)}:bans"
             ban_id = self.db.zcard(base_key)
             db = self.db.pipeline()
             db.zadd(base_key, {ban_id: time.time() + td.total_seconds()})
             ban = {"expires": expires, "reason": reason, "issued": now, "issued_by": player.steam_id}
-            db.hmset(base_key + ":{}".format(ban_id), ban)
+            db.hmset(f"{base_key}:{ban_id}", ban)
             db.execute()
 
             try:
-                self.kick(ident, "has been banned until ^6{}^7: {}".format(expires, reason))
+                self.kick(ident, f"has been banned until ^6{expires}^7: {reason}")
             except ValueError:
-                channel.reply("^6{} ^7has been banned. Ban expires on ^6{}^7.".format(name, expires))
+                channel.reply(f"^6{name}^7 has been banned. Ban expires on ^6{expires}^7.")
 
     def cmd_unban(self, player, msg, channel):
         """ Unbans the specified player if banned. """
@@ -234,16 +246,16 @@ class ban(minqlxtended.Plugin):
         else:
             name = ident
 
-        base_key = PLAYER_KEY.format(ident) + ":bans"
+        base_key = f"{PLAYER_KEY.format(ident)}:bans"
         bans = self.db.zrangebyscore(base_key, time.time(), "+inf", withscores=True)
         if not bans:
-            channel.reply("^7 No active bans on ^6{}^7 found.".format(name))
+            channel.reply(f"No active bans on ^6{name}^7 found.")
         else:
             db = self.db.pipeline()
             for ban_id, score in bans:
                 db.zincrby(base_key, -score, ban_id)
             db.execute()
-            channel.reply("^6{}^7 has been unbanned.".format(name))
+            channel.reply(f"^6{name}^7 has been unbanned.")
 
     def cmd_checkban(self, player, msg, channel):
         """ Checks whether a player has been banned, and if so, the reason (if originally specified.) """
@@ -273,17 +285,17 @@ class ban(minqlxtended.Plugin):
         if res:
             expires, reason = res
             if reason:
-                channel.reply("^6{}^7 is banned until ^6{}^7 for the following reason:^6 {}".format(name, *res))
+                channel.reply(f"^6{name}^7 is banned until ^6{expires}^7 for the following reason:^6 {reason}")
             else:
-                channel.reply("^6{}^7 is banned until ^6{}^7.".format(name, expires))
+                channel.reply(f"^6{name}^7 is banned until ^6{expires}^7.")
             return
-        elif self.get_cvar("qlx_leaverBan", bool):
+        elif self._qlx_leaverBan:
             status = self.leave_status(ident)
             if status and status[0] == "ban":
-                channel.reply("^6{} ^7is banned for having left too many games.".format(name))
+                channel.reply(f"^6{name}^7 is banned for having left too many games.")
                 return
 
-        channel.reply("^6{} ^7is not banned.".format(name))
+        channel.reply(f"^6{name}^7 is not banned.")
 
     def cmd_forgive(self, player, msg, channel):
         """ Removes a leave from a player. Optional number can be specified to remove that amount of leaves. """
@@ -310,16 +322,16 @@ class ban(minqlxtended.Plugin):
 
         base_key = PLAYER_KEY.format(ident)
         if base_key not in self.db:
-            channel.reply("I do not know ^6{}^7.".format(name))
+            channel.reply(f"I do not know ^6{name}^7.")
             return
 
         try:
-            leaves = int(self.db[base_key + ":games_left"])
+            leaves = int(self.db[f"{base_key}:games_left"])
         except KeyError:
             leaves = 0
 
         if leaves <= 0:
-            channel.reply("^6{}^7's leaves are already at ^6{}^7.".format(name, leaves))
+            channel.reply(f"^6{name}^7's leaves are already at ^6{leaves}^7.")
             return
 
         if len(msg) == 2:
@@ -334,19 +346,18 @@ class ban(minqlxtended.Plugin):
         new_leaves = leaves - leaves_to_forgive
         if new_leaves <= 0:
             self.db[base_key + ":games_left"] = 0
-            channel.reply("^6{}^7's leaves have been reduced to ^60^7.".format(name))
+            channel.reply(f"^6{name}^7's leaves have been reduced to ^60^7.")
         else:
             self.db[base_key + ":games_left"] = new_leaves
-            channel.reply("^6{}^7 games have been forgiven, putting ^6{}^7 at ^6{}^7 leaves."
-                .format(leaves_to_forgive, name, new_leaves))
+            channel.reply(f"^6{leaves_to_forgive}^7 games have been forgiven, putting ^6{name}^7 at ^6{new_leaves}^7 leaves.")
 
     def cmd_gamestats(self, player, msg, channel):
         """ Returns the player's own game leave/completion statistics (or those of another player.) """
-        if len(msg) < 2:  # the player wants his own leaves returned
+        if len(msg) < 2:  # the player wants their own leaves returned
             target_player = player
             ident = player.steam_id
         else:
-            if not self.db.has_permission(player, self.get_cvar("qlx_statOtherPlayersPermission", int)):
+            if not self.db.has_permission(player, self._qlx_statOtherPlayersPermission):
                 player.tell("You do not have permission to obtain game stats for other players.")
                 return minqlxtended.RET_STOP_ALL
             try:
@@ -363,30 +374,30 @@ class ban(minqlxtended.Plugin):
                 channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
                 return
 
-        games_left = self.db.get("minqlx:players:{}:games_left".format(ident))
-        games_completed = self.db.get("minqlx:players:{}:games_completed".format(ident))
+        games_left = self.db.get(f"minqlx:players:{ident}:games_left")
+        games_completed = self.db.get(f"minqlx:players:{ident}:games_completed")
 
         if (games_completed == None) or (games_left == None):
-            channel.reply("^6{}^7 does not have that data recorded. Have you entered the right ID?".format(ident))
+            channel.reply(f"^6{ident}^7 does not have that data recorded. Have you entered the right ID?")
             return
 
         completion_percentage = (int(games_completed) / (int(games_left) + int(games_completed))) * 100
 
-        channel.reply("^6{}^7 has completed ^6{:.2f}％^7 of their games.".format(target_player.clean_name if target_player else ident, completion_percentage))
-        channel.reply("    ^6{}^7 game{} completed.".format(games_completed, ("s" if int(games_left) != 1 else "")))
-        channel.reply("    ^6{}^7 game{} left.".format(games_left, ("s" if int(games_left) != 1 else "")))
+        channel.reply(f"^6{target_player.clean_name if target_player else ident}^7 has completed ^6{completion_percentage:.2f}％^7 of their games.")
+        channel.reply(f"    ^6{games_completed}^7 game{('s' if int(games_left) != 1 else '')} completed.")
+        channel.reply(f"    ^6{games_left}^7 game{('s' if int(games_left) != 1 else '')} left.")
 
     # ====================================================================
     #                               HELPERS
     # ====================================================================
 
     def is_banned(self, steam_id):
-        base_key = PLAYER_KEY.format(steam_id) + ":bans"
+        base_key = f"{PLAYER_KEY.format(steam_id)}:bans"
         bans = self.db.zrangebyscore(base_key, time.time(), "+inf", withscores=True)
         if not bans:
             return None
 
-        longest_ban = self.db.hgetall(base_key + ":{}".format(bans[-1][0]))
+        longest_ban = self.db.hgetall(f"{base_key}:{bans[-1][0]}")
         expires = datetime.datetime.strptime(longest_ban["expires"], TIME_FORMAT)
         if (expires - datetime.datetime.now()).total_seconds() > 0:
             return expires, longest_ban["reason"]
@@ -397,21 +408,21 @@ class ban(minqlxtended.Plugin):
         """Get a player's status when it comes to leaving, given automatic leaver ban is on.
 
         """
-        if not self.get_cvar("qlx_leaverBan", bool):
+        if not self._qlx_leaverBan:
             return None
 
         try:
-            completed = self.db[PLAYER_KEY.format(steam_id) + ":games_completed"]
-            left = self.db[PLAYER_KEY.format(steam_id) + ":games_left"]
+            completed = self.db[f"{PLAYER_KEY.format(steam_id)}:games_completed"]
+            left = self.db[f"{PLAYER_KEY.format(steam_id)}:games_left"]
         except KeyError:
             return None
 
         completed = int(completed)
         left = int(left)
 
-        min_games_completed = self.get_cvar("qlx_leaverBanMinimumGames", int)
-        warn_threshold = self.get_cvar("qlx_leaverBanWarnThreshold", float)
-        ban_threshold = self.get_cvar("qlx_leaverBanThreshold", float)
+        min_games_completed = self._qlx_leaverBanMinimumGames
+        warn_threshold = self._qlx_leaverBanWarnThreshold
+        ban_threshold = self._qlx_leaverBanThreshold
 
         # Check their games completed to total games ratio.
         total = completed + left
@@ -434,5 +445,6 @@ class ban(minqlxtended.Plugin):
         return action, completed / total
 
     def warn_player(self, player, ratio):
-        player.tell("^7You have only completed ^6{}^7 percent of your games.".format(round(ratio * 100, 1)))
+        player.center_print("^1BAN WARNING^7\nReview the console for more information.")
+        player.tell(f"^7You have only completed ^6{round(ratio * 100, 1)}^7 percent of your games.")
         player.tell("^7If you keep leaving you ^6will^7 be banned.")

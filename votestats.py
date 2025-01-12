@@ -15,10 +15,12 @@ class votestats(minqlxtended.Plugin):
         self.add_command("votes", self.cmd_votes)
 
         self.set_cvar_once("qlx_privatiseVotes", "0")
+        self._qlx_privatiseVotes = self.get_cvar("qlx_privatiseVotes", bool)
 
-        self.plugin_version = "1.7"
+        self.plugin_version = "1.8"
 
         self.has_voted = []
+
 
     def cmd_votes(self, player, msg, channel):
         """ Prevents 'x voted y' messages from appearing for the calling player. Use again to re-enable these messages. """
@@ -32,7 +34,7 @@ class votestats(minqlxtended.Plugin):
         return minqlxtended.RET_STOP_ALL
     
     def process_vote(self, player, yes):
-        if (self.get_cvar("qlx_privatiseVotes", bool)):
+        if self._qlx_privatiseVotes:
             return
 
         if player in self.has_voted:
@@ -51,17 +53,17 @@ class votestats(minqlxtended.Plugin):
 
     def handle_vote_ended(self, votes, vote, args, passed):
         self.has_voted = []
-        self.msg("Vote results: ^2{}^7 - ^1{}^7.".format(*votes))
+        self.msg(f"Vote results: ^2{votes[0]}^7 - ^1{votes[1]}^7.")
         
         if passed:
-            if vote.lower() == "map":
+            if vote.lower().strip() == "map":
                 changingToMapAndMode = args.lower().split()
                 if len(changingToMapAndMode) > 1:
-                    theMsg = "The map is changing to ^4{}^7, with new game type ^4{}^7.".format(changingToMapAndMode[0], changingToMapAndMode[1])
+                    theMsg = f"The map is changing to ^6{changingToMapAndMode[0]}^7, with new factory ^6{changingToMapAndMode[1]}^7."
                 else:
-                    theMsg = "The map is changing to ^4{}^7.".format(changingToMapAndMode[0])
+                    theMsg = f"The map is changing to ^6{changingToMapAndMode[0]}^7."
 
                 self.msg(theMsg)
     
     def cmd_showversion(self, player, msg, channel):
-        channel.reply("^4votestats.py^7 - version {}, created by Thomas Jones on 01/01/2016.".format(self.plugin_version))
+        channel.reply(f"^4votestats.py^7 - version {self.plugin_version}, created by Thomas Jones on 01/01/2016.")

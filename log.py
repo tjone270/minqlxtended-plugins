@@ -46,26 +46,23 @@ class log(minqlxtended.Plugin):
         file_handler = RotatingFileHandler(file_path, encoding="utf-8", maxBytes=maxlogsize, backupCount=maxlogs)
         file_handler.setFormatter(file_fmt)
         self.chatlog.addHandler(file_handler)
-        self.chatlog.info("============================= Logger started @ {} ============================="
-            .format(datetime.datetime.now()))
+        self.chatlog.info(f"{'='*29} Logger started @ {datetime.datetime.now()} {'='*29}")
 
     def handle_player_connect(self, player):
-        self.chatlog.info("{}:{}:{} connected.".format(player.clean_name, player.steam_id, player.ip))
+        self.chatlog.info(f"{player.clean_name}:{player.steam_id}:{player.ip} connected.")
 
     def handle_player_disconnect(self, player, reason):
         if reason and reason[-1] not in ("?", "!", "."):
             reason = reason + "."
         
-        self.chatlog.info(self.clean_text("{}:{} {}".format(player, player.steam_id, reason)))
+        self.chatlog.info(self.clean_text(f"{player}:{player.steam_id} {reason}"))
 
     def handle_chat(self, player, msg, channel):
         channel_name = ""
         if channel != "chat":
-            channel_name = "[{}] ".format(str(channel).upper())
+            channel_name = f"[{str(channel).upper()}] "
         
-        self.chatlog.info(self.clean_text("{}<{}:{}> {}"
-            .format(channel_name, player, player.steam_id, msg)))
+        self.chatlog.info(self.clean_text(f"{channel_name}<{player}:{player.steam_id}> {msg}"))
 
     def handle_command(self, caller, command, args):
-        self.chatlog.info(self.clean_text("[CMD] <{}:{}> {}"
-            .format(caller, caller.steam_id, args)))
+        self.chatlog.info(self.clean_text(f"[CMD] <{caller}:{caller.steam_id}> {args}"))

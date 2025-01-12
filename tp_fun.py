@@ -21,7 +21,7 @@ class tp_fun(minqlxtended.Plugin):
         self.add_command("specplay", self.cmd_spec_play, 5)
         self.add_command("digup", self.cmd_digup, 3, usage="<id>")
 
-        self.plugin_version = "2.0"
+        self.plugin_version = "2.1"
 
     def cmd_spec_play(self, player, msg, channel):
         """ Spawns all current spectators above the calling player. """
@@ -45,7 +45,7 @@ class tp_fun(minqlxtended.Plugin):
             def next_frame(p):
                 p.weapon = 15
             next_frame(p)
-            player.tell("{}^7 is spawned {} units above you.".format(p, z_pos_boost))
+            player.tell(f"{p}^7 is spawned {z_pos_boost} units above you.")
 
     def cmd_bury(self, player, msg, channel):
         """ Buries the specified player in the ground. """
@@ -83,8 +83,6 @@ class tp_fun(minqlxtended.Plugin):
         """ Draws a line using flags between two sets of coordinates. """
         if len(msg) < 6:
             return minqlxtended.RET_USAGE
-
-        #MAX_DISTANCE = 1024
         
         def dropflag(x, y, z):
             minqlxtended.spawn_item(36, int(x), int(y), int(z))
@@ -95,8 +93,6 @@ class tp_fun(minqlxtended.Plugin):
         drawStep        = int(msg[4])
         drawZAxis       = int(msg[5])
 
-        #if (abs(drawFrom - drawTo) >= MAX_DISTANCE):
-        #    channel.reply("Distance too long. (>= {})".format(MAX_DISTANCE))
         if (drawPlaneStart[0] == "x"):
             for step in range(drawFrom, drawTo, drawStep):
                 dropflag(int(drawPlaneStart[1]), int(step), int(drawZAxis))
@@ -132,7 +128,7 @@ ______
         """ Causes the calling player to send the :D emoji to chat with randomised colours. """
         num1 = randint(0,6)
         num2 = randint(0,6)
-        minqlxtended.client_command(player.id, "say ^{}:^{}D".format(num1, num2))
+        minqlxtended.client_command(player.id, f"say ^{num1}:^{num2}D")
         return minqlxtended.RET_STOP_ALL
         
     def cmd_pentagram(self, player, msg, channel):
@@ -147,39 +143,38 @@ ______
             return
 
         pentagramee.powerups(battlesuit=3)
-        self.msg("{}^7 has got the ^1Pentagram of Protection^7!".format(pentagramee.name))
+        self.msg(f"{pentagramee.name}^7 has got the ^1Pentagram of Protection^7!")
         
     def cmd_penlen(self, player, msg, channel):
         """ How long is it eh? """
         playerName = player.clean_name
         randNum = randint(0,11)
         if randNum == 0:
-            channel.reply("^7{}^7's penis length: ^40 inches (inverted!)^7".format(player))
+            channel.reply(f"^7{player}^7's penis length: ^40 inches (inverted!)^7")
         else:
-            channel.reply("^7{}^7's penis length: ^4{} inch{}^7".format(player, randNum, "es" if randNum != 1 else ""))
+            channel.reply(f"^7{player}^7's penis length: ^4{randNum} inch{'es' if randNum != 1 else ''}^7")
 
     def cmd_penwidth(self, player, msg, channel):
         """ Length is one thing, but what about width? """
         randNum = randint(0, 4)
         if randNum == 0:
-            channel.reply("^7{}^7's penis width: ^40 inches (anti-girth!)^7".format(player))
+            channel.reply(f"^7{player}^7's penis width: ^40 inches (anti-girth!)^7")
         elif randNum == 4:
-            channel.reply("^7{}^7's penis width: ^44 inches (mega-girth!)^7".format(player))
+            channel.reply(f"^7{player}^7's penis width: ^44 inches (mega-girth!)^7")
         else:
-            channel.reply("^7{}^7's penis width: ^4{} inch{}^7".format(player, randNum, "es" if randNum != 1 else ""))
+            channel.reply(f"^7{player}^7's penis width: ^4{randNum} inch{'es' if randNum != 1 else ''}^7")
 
     def cmd_vagdep(self, player, msg, channel):
         """ Width is one thing, but what about depth? """
         playerName = player.clean_name
         randNum = randint(0,11)
         if randNum == 0:
-            channel.reply("^7{}^7's vaginal depth: ^40 inches (are you trans?)^7".format(player))
+            channel.reply(f"{player}^7's vaginal depth: ^40 inches (???)^7")
         else:
-            channel.reply("^7{}^7's vaginal depth: ^4{} inch{}^7".format(player, randNum, "es" if randNum != 1 else ""))
+            channel.reply(f"{player}^7's vaginal depth: ^4{randNum} inch{'es' if randNum != 1 else ''}^7")
 
     def cmd_boobsize(self, player, msg, channel):
         """ Just have to know these things! """
-        playerName = player.clean_name
         randNum = randint(0,5)
         if randNum == 0:
             cupSize = "A"
@@ -194,7 +189,7 @@ ______
         elif randNum == 5:
             cupSize = "Z (discount wheelbarrow at Bunnings!)"
 
-        channel.reply("^7{}^7's cup size: ^4{}^7".format(playerName, cupSize))
+        channel.reply(f"^7{player}^7's cup size: ^4{cupSize}^7")
            
     def cmd_screenmessage(self, player, msg, channel):
         """ Display a message on all connected players' screens. """
@@ -209,4 +204,4 @@ ______
         minqlxtended.send_server_command(None, "cp \"^0FUCK YOU\n^1FUCK YOU\n^2FUCK YOU\n^3FUCK YOU\n^4FUCK YOU\n^5FUCK YOU\n^6FUCK YOU\"\n")
 
     def cmd_showversion(self, player, msg, channel):
-        channel.reply("^4tp_fun.py^7 - version {}, created by the community.".format(self.plugin_version))
+        channel.reply(f"^4tp_fun.py^7 - version {self.plugin_version}, created by the community.")

@@ -74,6 +74,9 @@ class fun(minqlxtended.Plugin):
 
         self.set_cvar_once("qlx_funSoundDelay", "3")
 
+        self._qlx_funSoundDelay = self.get_cvar("qlx_funSoundDelay", int)
+
+
     def handle_chat(self, player, msg, channel):
         if channel != "chat":
             return
@@ -167,7 +170,7 @@ class fun(minqlxtended.Plugin):
     def play_sound(self, path):
         if not self.last_sound:
             pass
-        elif time.time() - self.last_sound < self.get_cvar("qlx_funSoundDelay", int):
+        elif time.time() - self.last_sound < self._qlx_funSoundDelay:
             return
 
         self.last_sound = time.time()
@@ -179,10 +182,10 @@ class fun(minqlxtended.Plugin):
         """ Give the server some cookies? """
         x = random.randint(0, 100)
         if not x:
-            channel.reply("^6♥ ^7Here you go, {}. I baked these just for you! ^6♥".format(player))
+            channel.reply(f"^6♥ ^7Here you go, {player.name}^7. I baked these just for you! ^6♥")
         elif x == 1:
-            channel.reply("What, you thought ^6you^7 would get cookies from me, {}? Hah, think again.".format(player))
+            channel.reply(f"What, you thought ^6you^7 would get cookies from me, {player.name}^7? Hah, think again.")
         elif x < 50:
-            channel.reply("For me? Thank you, {}!".format(player))
+            channel.reply(f"For me? Thank you, {player.name}^7!")
         else:
-            channel.reply("I'm out of cookies right now, {}. Sorry!".format(player))
+            channel.reply(f"I'm out of cookies right now, {player.name}^7. Sorry!")

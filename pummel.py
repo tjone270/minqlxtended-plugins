@@ -20,35 +20,42 @@ class pummel(minqlxtended.Plugin):
         self.add_hook("kill", self.handle_kill)
         
         self.add_command("pummel", self.cmd_pummel)
-        
+    
+
     def handle_kill(self, victim, killer, data):
         if data["MOD"] == "GAUNTLET" and self.game.state == "in_progress":
+            if (killer.is_bot or victim.is_bot):
+                return # ignore bot related action.
+            
             self.play_sound("sound/vo_evil/humiliation1")
-            
-            self.db.sadd(PLAYER_KEY.format(killer.steam_id) + ":pummeled", str(victim.steam_id))
-            self.db.incr(PLAYER_KEY.format(killer.steam_id) + ":pummeled:" + str(victim.steam_id))
-    
-            killer_score = self.db[PLAYER_KEY.format(killer.steam_id) + ":pummeled:" + str(victim.steam_id)]
-            victim_score = 0
-            if PLAYER_KEY.format(victim.steam_id) + ":pummeled:" + str(killer.steam_id) in self.db:
-                victim_score = self.db[PLAYER_KEY.format(victim.steam_id) + ":pummeled:" + str(killer.steam_id)]
-            
-            msg = "^1PUMMEL!^7 {} ^1{}^7:^1{}^7 {}".format(killer.name, killer_score, victim_score, victim.name)
-            self.msg(msg)
+
+            @minqlxtended.thread
+            def f(self, victim, killer):
+                self.db.sadd(f"{PLAYER_KEY.format(killer.steam_id)}:pummeled", str(victim.steam_id))
+                self.db.incr(f"{PLAYER_KEY.format(killer.steam_id)}:pummeled:{str(victim.steam_id)}")
+        
+                killer_score = self.db[f"{PLAYER_KEY.format(killer.steam_id)}:pummeled:{str(victim.steam_id)}"]
+                victim_score = 0
+                if PLAYER_KEY.format(victim.steam_id) + ":pummeled:" + str(killer.steam_id) in self.db:
+                    victim_score = self.db[f"{PLAYER_KEY.format(victim.steam_id)}:pummeled:{str(killer.steam_id)}"]
+                
+                self.msg(f"^1PUMMEL!^7 {killer.name} ^1{killer_score}^7:^1{victim_score}^7 {victim.name}")
+            f(self, victim, killer)
     
     def cmd_pummel(self, player, msg, channel):
         """ Shows the calling player all the players they've pummeled who are currently connected to this server. """
-        pummels = self.db.smembers(PLAYER_KEY.format(player.steam_id) + ":pummeled")
+        pummels = self.db.smembers(f"{PLAYER_KEY.format(player.steam_id)}:pummeled")
         players = self.teams()["spectator"] + self.teams()["red"] + self.teams()["blue"] + self.teams()["free"]
         
         msg = ""
         for p in pummels:
             for pl in players:
                 if p == str(pl.steam_id):
-                    count = self.db[PLAYER_KEY.format(player.steam_id) + ":pummeled:" + p]
-                    msg +=  pl.name + ": ^1" + count + "^7 "
+                    count = self.db[f"{PLAYER_KEY.format(player.steam_id)}:pummeled:{p}"]
+                    msg += pl.name + ": ^1" + count + "^7 "
+        
         if msg == "":
-            self.msg("{} has not pummeled anybody on this server.".format(player))
+            self.msg(f"{player}^7 has not pummeled anybody on this server.")
         else:
-            self.msg("Pummel Stats for {}:".format(player))
+            self.msg(f"Pummel stats for {player}^7:")
             self.msg(msg)

@@ -13,7 +13,7 @@ PLAYER_DISALLOW_GAMEPLAY_MESSAGE = "Untrackable players are ^1not allowed^7 to j
 
 class untracked(minqlxtended.Plugin):
     def __init__(self):
-        self.add_hook("new_game", self._cache)
+        self.add_hook("new_game", self._cache_variables)
         self.add_hook("player_connect", self.handle_player_connect)
         self.add_hook("player_loaded", self.handle_player_loaded)
         self.add_hook("team_switch_attempt", self.handle_team_switch, priority=minqlxtended.PRI_HIGHEST)
@@ -21,12 +21,13 @@ class untracked(minqlxtended.Plugin):
 
         self.set_cvar_once("qlx_untrackedPlayerAction", "0") # 0 = do nothing, 1 = prevent player team changes, 2 = prevent player connection
 
-        self._cache()
+        self._cache_variables()
 
 
-    def _cache(self):
+    def _cache_variables(self):
+        """ we do this to prevent lots of unnecessary engine calls """
         self._balance_loaded = ("balance" in self.plugins)
-        self._untracked_player_action = self.get_cvar("qlx_untrackedPlayerAction", int)
+        self._qlx_untrackedPlayerAction = self.get_cvar("qlx_untrackedPlayerAction", int)
         
         self.tracked_players = set()
         self.untracked_players = set()
@@ -36,7 +37,7 @@ class untracked(minqlxtended.Plugin):
 
     def handle_player_connect(self, player): # initial connection event
         if self._balance_loaded:
-            if (player.steam_id in self.untracked_players) and (self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION):
+            if (player.steam_id in self.untracked_players) and (self._qlx_untrackedPlayerAction == ACTION_PREVENT_PLAYER_CONNECTION):
                 return PLAYER_CONNECTION_MESSAGE
             
             self.check_player_trackable(player, self.handle_untracked_player)
@@ -47,9 +48,9 @@ class untracked(minqlxtended.Plugin):
             self.check_player_trackable(player, self.handle_untracked_player)
 
             if player.steam_id in self.untracked_players:
-                if self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION:
+                if self._qlx_untrackedPlayerAction == ACTION_PREVENT_PLAYER_CONNECTION:
                     self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable, their connection is blocked.")
-                elif self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE:
+                elif self._qlx_untrackedPlayerAction == ACTION_PREVENT_TEAM_CHANGE:
                     self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable, they cannot join the match.")
                 else:
                     self.msg(f"^1Untrackable Player^7: {player.name}^7 is not QLStats trackable.")
@@ -58,7 +59,7 @@ class untracked(minqlxtended.Plugin):
         if new_team == "spectator": 
             return
         
-        if (player.steam_id in self.untracked_players) and (self._untracked_player_action >= ACTION_PREVENT_TEAM_CHANGE):
+        if (player.steam_id in self.untracked_players) and (self._qlx_untrackedPlayerAction >= ACTION_PREVENT_TEAM_CHANGE):
             if player.team != "spectator":
                 player.team = "spectator"
 
@@ -67,9 +68,9 @@ class untracked(minqlxtended.Plugin):
 
     def handle_untracked_player(self, player):
         if (player.valid) and (player.connection_state == "active"):
-            if self._untracked_player_action == ACTION_PREVENT_PLAYER_CONNECTION:
+            if self._qlx_untrackedPlayerAction == ACTION_PREVENT_PLAYER_CONNECTION:
                 player.kick(self.clean_text(PLAYER_DISALLOW_GAMEPLAY_MESSAGE))
-            elif self._untracked_player_action == ACTION_PREVENT_TEAM_CHANGE:
+            elif self._qlx_untrackedPlayerAction == ACTION_PREVENT_TEAM_CHANGE:
                 if player.team != "spectator":
                     player.team = "spectator"
 

@@ -72,10 +72,13 @@ class balance(minqlxtended.Plugin):
         self._cache_cvars()
 
     def _cache_cvars(self):
-        # Store some cvar values that are used in non-game threads
-        self._use_local = self.get_cvar("qlx_balanceUseLocal", bool)
-        self._api_url = "http://{}/{}/".format(self.get_cvar("qlx_balanceUrl"), self.get_cvar("qlx_balanceApi"))
-        self._local_elo_expiration = self.get_cvar("qlx_balanceLocalExpires", int)
+        """ we do this to prevent lots of unnecessary engine calls """
+        self._api_url = f'http://{self.get_cvar("qlx_balanceUrl")}/{self.get_cvar("qlx_balanceApi")}/'
+        self._qlx_balanceUseLocal = self.get_cvar("qlx_balanceUseLocal", bool)
+        self._qlx_balanceLocalExpires = self.get_cvar("qlx_balanceLocalExpires", int)
+        self._qlx_balanceCancelSuggestionAfterRound = self.get_cvar("qlx_balanceCancelSuggestionAfterRound", bool)
+        self._qlx_balanceAuto = self.get_cvar("qlx_balanceAuto", bool)
+        self._qlx_balanceMinimumSuggestionDiff = self.get_cvar("qlx_balanceMinimumSuggestionDiff", float)
 
     def handle_round_countdown(self, *args, **kwargs):
         self.in_countdown = True
@@ -86,7 +89,7 @@ class balance(minqlxtended.Plugin):
             def f():
                 self.execute_suggestion()
             f()
-        elif (any(self.suggested_agree)) and (self.get_cvar("qlx_balanceCancelSuggestionAfterRound", bool)):
+        elif (any(self.suggested_agree)) and (self._qlx_balanceCancelSuggestionAfterRound):
             for player, agreed in zip(self.suggested_pair, self.suggested_agree):
                 if not agreed:
                     continue
@@ -100,11 +103,11 @@ class balance(minqlxtended.Plugin):
                     return 
 
             if agreed_player:
-                self.msg("As only ^4{}^7 agreed, the suggestion has been cancelled.".format(agreed_player.clean_name))
+                self.msg(f"As only ^4{agreed_player.clean_name}^7 agreed, the suggestion has been cancelled.")
 
             self.suggested_pair = None
             self.suggested_agree = [False, False]
-        elif (self.suggested_pair != None) and (self.get_cvar("qlx_balanceCancelSuggestionAfterRound", bool)):
+        elif (self.suggested_pair != None) and (self._qlx_balanceCancelSuggestionAfterRound):
             self.msg("As no-one agreed, the suggestion has been cancelled.")
             self.suggested_pair = None
             self.suggested_agree = [False, False]
@@ -113,7 +116,7 @@ class balance(minqlxtended.Plugin):
         self.in_countdown = False
 
     def handle_vote_ended(self, votes, vote, args, passed):
-        if passed == True and vote == "shuffle" and self.get_cvar("qlx_balanceAuto", bool):
+        if passed == True and vote == "shuffle" and self._qlx_balanceAuto:
             gt = self.game.type_short
             if gt not in SUPPORTED_GAMETYPES:
                 return
@@ -163,7 +166,7 @@ class balance(minqlxtended.Plugin):
         players = players.copy()
 
         # Get local ratings if present in DB.
-        if self._use_local:
+        if self._qlx_balanceUseLocal:
             for steam_id in players.copy():
                 gt = players[steam_id]
                 key = RATING_KEY.format(steam_id, gt)
@@ -263,7 +266,7 @@ class balance(minqlxtended.Plugin):
         del self.requests[request_id]
         if status_code != requests.codes.ok:
             # TODO: Put a couple of known errors here for more detailed feedback.
-            channel.reply("ERROR {}: Failed to fetch ratings.".format(status_code))
+            channel.reply(f"ERROR {status_code}: Failed to fetch ratings.")
         else:
             callback(players, channel, *args)
 
@@ -295,7 +298,7 @@ class balance(minqlxtended.Plugin):
             sid = player.steam_id
         else:
             if not self.db.has_permission(player, 2):  # purgery issue #6
-                channel.reply("Using the ^4{}^7 command to obtain other player's ratings is disabled on this server.".format(msg[0]))
+                channel.reply(f"Using the ^4{msg[0]}^7 command to obtain other player's ratings is disabled on this server.")
                 return minqlxtended.RET_STOP
 
             try:
@@ -315,8 +318,7 @@ class balance(minqlxtended.Plugin):
             if msg[2].lower() in EXT_SUPPORTED_GAMETYPES:
                 gt = msg[2].lower()
             else:
-                player.tell("Invalid gametype. Supported gametypes: {}"
-                    .format(", ".join(EXT_SUPPORTED_GAMETYPES)))
+                player.tell(f'Invalid gametype. Supported gametypes: {", ".join(EXT_SUPPORTED_GAMETYPES)}')
                 return minqlxtended.RET_STOP_ALL
         else:
             gt = self.game.type_short
@@ -334,7 +336,7 @@ class balance(minqlxtended.Plugin):
         else:
             name = sid
         
-        channel.reply("{} has a rating of ^6{}^7 in {}.".format(name, self.ratings[sid][gametype]["elo"], gametype.upper()))
+        channel.reply(f'{name}^7 has a rating of ^6{self.ratings[sid][gametype]["elo"]}^7 in {gametype.upper()}.')
 
     def cmd_setrating(self, player, msg, channel):
         """ Manually set the rating of a player. Depending on server configuration, this manually-set rating may expire after a pre-determined timeframe."""
@@ -367,8 +369,8 @@ class balance(minqlxtended.Plugin):
         
         gt = self.game.type_short
         self.db[RATING_KEY.format(sid, gt)] = rating
-        if self._local_elo_expiration:
-            self.db.expire(RATING_KEY.format(sid, gt), self._local_elo_expiration)
+        if self._qlx_balanceLocalExpires:
+            self.db.expire(RATING_KEY.format(sid, gt), self._qlx_balanceLocalExpires)
 
         # If we have the player cached, set the rating.
         with self.ratings_lock:
@@ -377,7 +379,7 @@ class balance(minqlxtended.Plugin):
                 self.ratings[sid][gt]["local"] = True
                 self.ratings[sid][gt]["time"] = -1
 
-        channel.reply("{}'s {} rating has been set to ^6{}^7.".format(name, gt.upper(), rating))
+        channel.reply(f"{name}'s {gt.upper()} rating has been set to ^6{rating}^7.")
 
     def cmd_remrating(self, player, msg, channel):
         """ Remove a manually-set rating for a player. """
@@ -407,7 +409,7 @@ class balance(minqlxtended.Plugin):
         try:
             del self.db[RATING_KEY.format(sid, gt)]
         except KeyError:
-            channel.reply("{}^7 does not have a locally set rating.".format(name))
+            channel.reply(f"{name}^7 does not have a locally set rating.")
             return minqlxtended.RET_STOP_ALL
 
         # If we have the player cached, remove the game type.
@@ -415,7 +417,7 @@ class balance(minqlxtended.Plugin):
             if sid in self.ratings and gt in self.ratings[sid]:
                 del self.ratings[sid][gt]
 
-        channel.reply("{}^7's locally set {} rating has been deleted.".format(name, gt.upper()))
+        channel.reply(f"{name}^7's locally set {gt.upper()} rating has been deleted.")
 
     def cmd_balance(self, player, msg, channel):
         """ Balance the teams according to player ratings, by distributing players evenly. Requires that the total number of players should be an even number. """
@@ -475,14 +477,11 @@ class balance(minqlxtended.Plugin):
             avg_blue = self.team_average(teams["blue"], gt)
             diff_rounded = abs(round(avg_red) - round(avg_blue)) # Round individual averages.
             if round(avg_red) > round(avg_blue):
-                self.msg("^1{} ^7vs ^4{}^7 - DIFFERENCE: ^1{}"
-                    .format(round(avg_red), round(avg_blue), diff_rounded))
+                self.msg(f"^1{round(avg_red)} ^7vs ^4{round(avg_blue)}^7 - DIFFERENCE: ^1{diff_rounded}")
             elif round(avg_red) < round(avg_blue):
-                self.msg("^1{} ^7vs ^4{}^7 - DIFFERENCE: ^4{}"
-                    .format(round(avg_red), round(avg_blue), diff_rounded))
+                self.msg(f"^1{round(avg_red)} ^7vs ^4{round(avg_blue)}^7 - DIFFERENCE: ^4{diff_rounded}")
             else:
-                self.msg("^1{} ^7vs ^4{}^7 - Holy shit!"
-                    .format(round(avg_red), round(avg_blue)))
+                self.msg(f"^1{round(avg_red)} ^7vs ^4{round(avg_blue)}^7 - Holy shit!")
         else:
             channel.reply("Teams are good! Nothing to balance.")
         return True
@@ -519,19 +518,15 @@ class balance(minqlxtended.Plugin):
         switch = self.suggest_switch(teams, gt)
         diff_rounded = abs(round(avg_red) - round(avg_blue)) # Round individual averages.
         if round(avg_red) > round(avg_blue):
-            channel.reply("^1{} ^7vs ^4{}^7 - DIFFERENCE: ^1{}"
-                .format(round(avg_red), round(avg_blue), diff_rounded))
+            channel.reply(f"^1{round(avg_red)} ^7vs ^4{round(avg_blue)}^7 - DIFFERENCE: ^1{diff_rounded}")
         elif round(avg_red) < round(avg_blue):
-            channel.reply("^1{} ^7vs ^4{}^7 - DIFFERENCE: ^4{}"
-                .format(round(avg_red), round(avg_blue), diff_rounded))
+            channel.reply(f"^1{round(avg_red)} ^7vs ^4{round(avg_blue)}^7 - DIFFERENCE: ^4{diff_rounded}")
         else:
-            channel.reply("^1{} ^7vs ^4{}^7 - Holy shit!"
-                .format(round(avg_red), round(avg_blue)))
+            channel.reply(f"^1{round(avg_red)} ^7vs ^4{round(avg_blue)}^7 - Holy shit!")
 
-        minimum_suggestion_diff = self.get_cvar("qlx_balanceMinimumSuggestionDiff", float)
+        minimum_suggestion_diff = self._qlx_balanceMinimumSuggestionDiff
         if switch and switch[1] >= minimum_suggestion_diff:
-            channel.reply("SUGGESTION: switch ^6{}^7 with ^6{}^7. Mentioned players can type !a to agree."
-                .format(switch[0][0].clean_name, switch[0][1].clean_name))
+            channel.reply(f"SUGGESTION: switch ^6{switch[0][0].clean_name}^7 with ^6{switch[0][1].clean_name}^7. Mentioned players can type !a to agree.")
             if not self.suggested_pair or self.suggested_pair[0] != switch[0][0] or self.suggested_pair[1] != switch[0][1]:
                 self.suggested_pair = (switch[0][0], switch[0][1])
                 self.suggested_agree = [False, False]
@@ -577,7 +572,7 @@ class balance(minqlxtended.Plugin):
             return minqlxtended.RET_STOP_ALL
 
         if not self.db.has_permission(player, 2):
-            player.tell("The ^4{}^7 command has been disabled on this server, except by moderators.".format(msg[0]))
+            player.tell(f"The ^4{msg[0]}^7 command has been disabled on this server, except by moderators.")
             return minqlxtended.RET_STOP_ALL
 
         players = dict([(p.steam_id, gt) for p in self.players()])
@@ -597,19 +592,19 @@ class balance(minqlxtended.Plugin):
 
         if teams["free"]:
             free_sorted = sorted(teams["free"], key=lambda x: self.ratings[x.steam_id][gt]["elo"], reverse=True)
-            free = ", ".join(["{}: ^6{}^7".format(p.clean_name, self.ratings[p.steam_id][gt]["elo"]) for p in free_sorted])
+            free = ", ".join([f'{p.clean_name}: ^6{self.ratings[p.steam_id][gt]["elo"]}^7' for p in free_sorted])
             channel.reply(free)
         if teams["red"]:
             red_sorted = sorted(teams["red"], key=lambda x: self.ratings[x.steam_id][gt]["elo"], reverse=True)
-            red = ", ".join(["{}: ^1{}^7".format(p.clean_name, self.ratings[p.steam_id][gt]["elo"]) for p in red_sorted])
+            red = ", ".join([f'{p.clean_name}: ^1{self.ratings[p.steam_id][gt]["elo"]}^7' for p in red_sorted])
             channel.reply(red)
         if teams["blue"]:
             blue_sorted = sorted(teams["blue"], key=lambda x: self.ratings[x.steam_id][gt]["elo"], reverse=True)
-            blue = ", ".join(["{}: ^4{}^7".format(p.clean_name, self.ratings[p.steam_id][gt]["elo"]) for p in blue_sorted])
+            blue = ", ".join([f'{p.clean_name}: ^4{self.ratings[p.steam_id][gt]["elo"]}^7' for p in blue_sorted])
             channel.reply(blue)
         if teams["spectator"]:
             spec_sorted = sorted(teams["spectator"], key=lambda x: self.ratings[x.steam_id][gt]["elo"], reverse=True)
-            spec = ", ".join(["{}: {}".format(p.clean_name, self.ratings[p.steam_id][gt]["elo"]) for p in spec_sorted])
+            spec = ", ".join([f'{p.clean_name}: {self.ratings[p.steam_id][gt]["elo"]}' for p in spec_sorted])
             channel.reply(spec)
 
     def suggest_switch(self, teams, gametype):

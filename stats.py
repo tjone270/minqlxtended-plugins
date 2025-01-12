@@ -10,29 +10,25 @@ class stats(minqlxtended.Plugin):
         self.old_damage = {}
 
 
-    @minqlxtended.next_frame
     def handle_round_end(self, data):
-        time_elapsed = self.getElapsedSeconds(int(data["TIME"]))
-        round_number = int(data["ROUND"])
+        @minqlxtended.thread
+        def f(self, data):
+            time_elapsed = self.getElapsedSeconds(int(data["TIME"]))
+            round_number = int(data["ROUND"])
 
-        best_player_name = "(disconnected)"
-        colour           = "^3"
-        best_damage      = "^3(unknown)^7"
-        
-        try:
-            best_player, best_damage = self.getPlayerWithHighestDamage(round_number)
-            if best_player.valid:
-                best_player_name = best_player.clean_name
-                colour = "^1" if best_player.team == "red" else "^4"
-        except:
-            pass
-            
-        self.msg("^3DMG: ^5Round #{}: {} secs.^7 {}{}^5 leads with {} damage dealt this round.".format(round_number,
-                                                                                                       time_elapsed,
-                                                                                                       colour,
-                                                                                                       best_player_name,
-                                                                                                       best_damage))
-
+            best_player_name = "(disconnected)"
+            colour           = "^3"
+            best_damage      = "^3(unknown)^7"
+            try:
+                best_player, best_damage = self.getPlayerWithHighestDamage(round_number)
+                if best_player.valid:
+                    best_player_name = best_player.clean_name
+                    colour = "^1" if best_player.team == "red" else "^4"
+            except:
+                pass
+                
+            self.msg(f"^3DMG: ^5Round #{round_number}: {time_elapsed} secs.^7 {colour}{best_player_name}^5 leads with {best_damage} damage dealt this round.")
+        f(self, data)
 
     def handle_new_game(self, *args, **kwargs):
         self.old_seconds = 0

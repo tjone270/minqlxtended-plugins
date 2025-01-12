@@ -10,7 +10,9 @@ class votecommands(minqlxtended.Plugin):
         self.add_hook("client_command", self.handle_client_command)
 
         self.add_command(("yes", "no", "pass", "veto"), self.cmd_force_vote, 3, priority=minqlxtended.PRI_HIGHEST)
-        self.plugin_version = "1.3"
+        self.plugin_version = "1.4"
+
+        self._qlx_commandPrefix = self.get_cvar("qlx_commandPrefix")
 
     def handle_client_command(self, player, command):
         command = command.lower().split()[0]
@@ -20,10 +22,10 @@ class votecommands(minqlxtended.Plugin):
 
     def cmd_force_vote(self, player, msg, channel):
         """ Forces the current vote. """
-        command = msg[0].lower().replace(self.get_cvar("qlx_commandPrefix"), "")
+        command = msg[0].lower().replace(self._qlx_commandPrefix, "")
         
         action = False
-        if command == "yes" or command == "pass":
+        if command in ("yes", "pass"):
             action = True            
 
         self.do_vote(player, action)
@@ -31,11 +33,11 @@ class votecommands(minqlxtended.Plugin):
 
     def do_vote(self, player, action):
         if not self.is_vote_active():
-            player.tell("There is no current vote to ^4{}^7.".format("pass" if action else "veto"))
+            player.tell(f"There is no current vote to ^6{'pass' if action else 'veto'}^7.")
             return minqlxtended.RET_STOP_ALL
 
         if not self.db.has_permission(player.steam_id, 3):
-            player.tell("You don't have permission to ^4{}^7 a vote.".format(action))
+            player.tell(f"You don't have permission to ^6{action}^7 a vote.")
             return minqlxtended.RET_STOP_ALL
 
         if action:
@@ -45,7 +47,7 @@ class votecommands(minqlxtended.Plugin):
             minqlxtended.force_vote(False)
             word = "^1vetoed"
 
-        self.msg("{}^7 {}^7 the vote.".format(player.name, word))
+        self.msg(f"{player.name}^7 {word}^7 the vote.")
        
     def cmd_showversion(self, player, msg, channel):
-        channel.reply("^4votecommands.py^7 - version {}, created by Thomas Jones on 19/09/2016.".format(self.plugin_version))
+        channel.reply(f"^4votecommands.py^7 - version {self.plugin_version}, created by Thomas Jones on 19/09/2016.")

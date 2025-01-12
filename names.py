@@ -31,9 +31,16 @@ class names(minqlxtended.Plugin):
         self.add_command(("name", "setname"), self.cmd_name, usage="<name>", client_cmd_perm=0)
 
         self.set_cvar_once("qlx_enforceSteamName", "1")
-
+        
         self.steam_names = {}
         self.name_set = False
+
+        self._cache_variables()
+
+    def _cache_variables(self):
+        """ we do this to prevent lots of unnecessary engine calls """
+        self._qlx_enforceSteamName = self.get_cvar("qlx_enforceSteamName", bool)
+        self._qlx_commandPrefix = self.get_cvar("qlx_commandPrefix")
 
     def handle_player_connect(self, player):
         self.steam_names[player.steam_id] = player.clean_name
@@ -42,7 +49,7 @@ class names(minqlxtended.Plugin):
         name_key = _name_key.format(player.steam_id)
         if name_key in self.db:
             db_name = self.db[name_key]
-            if not self.get_cvar("qlx_enforceSteamName", bool) or self.clean_text(db_name).lower() == player.clean_name.lower():
+            if not self._qlx_enforceSteamName or self.clean_text(db_name).lower() == player.clean_name.lower():
                 self.name_set = True
                 player.name = db_name
 
@@ -83,7 +90,7 @@ class names(minqlxtended.Plugin):
         if len(name.encode()) > 36:
             player.tell("The name is too long. Consider using fewer colors or a shorter name.")
             return minqlxtended.RET_STOP_ALL
-        elif self.clean_text(name).lower() != player.clean_name.lower() and self.get_cvar("qlx_enforceSteamName", bool):
+        elif self.clean_text(name).lower() != player.clean_name.lower() and self._qlx_enforceSteamName:
             player.tell("The new name must match your current Steam name.")
             return minqlxtended.RET_STOP_ALL
         elif "\\" in name:
@@ -97,8 +104,7 @@ class names(minqlxtended.Plugin):
         name = "^7" + name
         player.name = name
         self.db[name_key] = name
-        player.tell("The name has been registered. To make me forget about it, a simple ^6{}name^7 will do it."
-            .format(self.get_cvar("qlx_commandPrefix")))
+        player.tell(f"The name has been registered. To make me forget about it, a simple ^6{self._qlx_commandPrefix}name^7 will do it.")
         return minqlxtended.RET_STOP_ALL
 
     def clean_excessive_colors(self, name):

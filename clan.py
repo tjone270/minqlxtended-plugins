@@ -19,6 +19,9 @@
 import minqlxtended
 import re
 
+
+CS_PLAYERS = 529
+
 _re_remove_excessive_colors = re.compile(r"(?:\^.)+(\^.)")
 _tag_key = "minqlx:players:{}:clantag"
 
@@ -32,9 +35,9 @@ class clan(minqlxtended.Plugin):
         # without having to worry about duplicate entries.
         if not value: # Player disconnected?
             return
-        elif 529 <= index < 529 + 64:
+        elif CS_PLAYERS <= index < CS_PLAYERS + 64:
             try:
-                player = self.player(index - 529)
+                player = self.player(index - CS_PLAYERS)
             except minqlxtended.NonexistentPlayerError:
                 # This happens when someone connects, but the player
                 # has yet to be properly initialized. We can safely
@@ -42,11 +45,12 @@ class clan(minqlxtended.Plugin):
                 return
             tag_key = _tag_key.format(player.steam_id)
             if tag_key in self.db:
-                return value + "\\cn\\{0}\\xcn\\{0}".format(self.db[tag_key])
+                tag = self.db[tag_key]
+                return value + f"\\cn\\{tag}\\xcn\\{tag}"
 
     def cmd_clan(self, player, msg, channel):
         """ Sets the player's clan tag to the string specified, or clears it if nothing specified. """
-        index = 529 + player.id
+        index = CS_PLAYERS + player.id
         tag_key = _tag_key.format(player.steam_id)
         
         if len(msg) < 2:
@@ -55,11 +59,11 @@ class clan(minqlxtended.Plugin):
                 cs = minqlxtended.parse_variables(minqlxtended.get_configstring(index), ordered=True)
                 del cs["cn"]
                 del cs["xcn"]
-                new_cs = "".join(["\\{}\\{}".format(key, cs[key]) for key in cs]).lstrip("\\")
+                new_cs = "".join([f"\\{key}\\{cs[key]}" for key in cs]).lstrip("\\")
                 minqlxtended.set_configstring(index, new_cs)
                 player.tell("The clan tag has been cleared.")
             else:
-                player.tell("Usage to set a clan tag: ^6{} <clan_tag>".format(msg[0]))
+                player.tell(f"Usage to set a clan tag: ^6{msg[0]} <clan_tag>")
             return minqlxtended.RET_STOP_EVENT
 
         if len(self.clean_text(msg[1])) > 5:
@@ -77,10 +81,10 @@ class clan(minqlxtended.Plugin):
         cs = minqlxtended.parse_variables(minqlxtended.get_configstring(index), ordered=True)
         cs["xcn"] = tag
         cs["cn"] = tag
-        new_cs = "".join(["\\{}\\{}".format(key, cs[key]) for key in cs])
+        new_cs = "".join([f"\\{key}\\{cs[key]}" for key in cs])
         self.db[tag_key] = tag
         minqlxtended.set_configstring(index, new_cs)
-        self.msg("{} changed clan tag to {}".format(player, tag))
+        self.msg(f"{player}^7 changed clan tag to {tag}")
         return minqlxtended.RET_STOP_EVENT
 
     def clean_tag(self, tag):

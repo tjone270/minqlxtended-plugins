@@ -17,6 +17,7 @@
 # along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
 import minqlxtended
+from os.path import basename
 
 MOTD_SET_KEY = "minqlx:motd"
 
@@ -33,8 +34,8 @@ class motd(minqlxtended.Plugin):
         self.add_command("addmotdall", self.cmd_addmotdall, 4, usage="<more_motd>")
 
         # homepath doesn't change runtime, so we can just save it for the sake of efficiency.
-        self.home = self.get_cvar("fs_homepath")
-        self.motd_key = MOTD_SET_KEY + ":{}".format(self.home)
+        self.home = basename(self.get_cvar("fs_homepath"))
+        self.motd_key = f"{MOTD_SET_KEY}:{self.home}"
 
         # Add this server to the MOTD set.
         self.db.sadd(MOTD_SET_KEY, self.home)
@@ -42,6 +43,14 @@ class motd(minqlxtended.Plugin):
         # Cvar to disable/change the welcome sound.
         self.set_cvar_once("qlx_motdSound", "sound/vo/crash_new/37b_07_alt.wav")
         self.set_cvar_once("qlx_motdHeader", "^6======= ^7Message of the Day ^6=======^7")
+
+        self._cache_variables()
+
+
+    def _cache_variables(self):
+        """ we do this to prevent lots of unnecessary engine calls """
+        self._qlx_motdSound = self.get_cvar("qlx_motdSound")
+        self._qlx_motdHeader = self.get_cvar("qlx_motdHeader")
 
     @minqlxtended.delay(2)
     def handle_player_loaded(self, player):
@@ -55,7 +64,7 @@ class motd(minqlxtended.Plugin):
         except KeyError:
             return
         
-        welcome_sound = self.get_cvar("qlx_motdSound")
+        welcome_sound = self._qlx_motdSound
         if welcome_sound == "0":
             welcome_sound = ""
         
@@ -78,7 +87,7 @@ class motd(minqlxtended.Plugin):
         motds = self.db.smembers(MOTD_SET_KEY)
         db = self.db.pipeline()
         for path in motds:
-            motd_key = MOTD_SET_KEY + ":{}".format(path)
+            motd_key = f"{MOTD_SET_KEY}:{path}"
             db.set(motd_key, " ".join(msg[1:]))
         db.execute()
         player.tell("All MOTDs have been set.")
@@ -100,7 +109,7 @@ class motd(minqlxtended.Plugin):
 
     def cmd_clearmotdall(self, player, msg, channel):
         """ Clears the message of the day on all servers. """
-        motds = [MOTD_SET_KEY + ":{}".format(m) for m in self.db.smembers(MOTD_SET_KEY)]
+        motds = [f"{MOTD_SET_KEY}:{m}" for m in self.db.smembers(MOTD_SET_KEY)]
         self.db.delete(*motds)
         player.tell("All MOTDs have been cleared.")
         return minqlxtended.RET_STOP_EVENT
@@ -122,7 +131,7 @@ class motd(minqlxtended.Plugin):
         """ Appends the specified text to the existing message of the day on all servers. """
         motds = self.db.smembers(MOTD_SET_KEY)
         for path in motds:
-            motd_key = MOTD_SET_KEY + ":{}".format(path)
+            motd_key = f"{MOTD_SET_KEY}:{path}"
             if motd_key not in self.db:
                 self.db[motd_key] = " ".join(msg[1:])
             else:
@@ -133,7 +142,7 @@ class motd(minqlxtended.Plugin):
         return minqlxtended.RET_STOP_EVENT
 
     def send_motd(self, player, motd):
-        for line in self.get_cvar("qlx_motdHeader").split("\\n"):
+        for line in self._qlx_motdHeader.split("\\n"):
             player.tell(line)
         for line in motd.split("\\n"):
             player.tell(line)

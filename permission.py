@@ -62,7 +62,7 @@ class permission(minqlxtended.Plugin):
         self.db.set_permission(ident, level)
         name = target_player.name if target_player else str(ident)
 
-        channel.reply("^6{}^7 was given permission level ^6{}^7.".format(name, level))
+        channel.reply(f"^6{name}^7 was given permission level ^6{level}^7.")
 
     def cmd_getperm(self, player, msg, channel):
         """ Responds with the specified player's permission level. """
@@ -80,15 +80,15 @@ class permission(minqlxtended.Plugin):
                 channel.reply("That's my master.")
                 return
         except ValueError:
-            channel.reply("Invalid ID. Use either a client ID or a SteamID64.".format(msg[1]))
+            channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
         
         perm = self.db.get_permission(ident)
         if perm is None:
-            channel.reply("I do not know ^6{}^7.".format(msg[1]))
+            channel.reply(f"I do not know ^6{msg[1]}^7.")
         else:
             name = target_player.name if target_player else str(ident)
-            channel.reply("^6{}^7 has permission level ^6{}^7.".format(name, perm))
+            channel.reply(f"^6{name}^7 has permission level ^6{perm}^7.")
 
     def cmd_myperm(self, player, msg, channel):
         """ Respond with the calling player's permission level. """
@@ -100,4 +100,4 @@ class permission(minqlxtended.Plugin):
         if perm is None:
             channel.reply("I do not know you.")
         else:
-            channel.reply("You have permission level ^6{}^7.".format(perm))
+            channel.reply(f"You have permission level ^6{perm}^7.")
