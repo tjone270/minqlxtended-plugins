@@ -73,7 +73,6 @@ class essentials(minqlxtended.Plugin):
         self.add_command("abort", self.cmd_abort, 2)
         self.add_command(("map", "changemap"), self.cmd_map, 2, usage="<mapname> [factory]")
         self.add_command(("help", "about", "version"), self.cmd_help, client_cmd_perm=0)
-        self.add_command("db", self.cmd_db, 5, usage="<key> [value]")
         self.add_command(("seen", "lastseen"), self.cmd_last_seen, usage="<steam_id>")
         self.add_command("firstseen", self.cmd_first_seen, usage="<id>/<steam_id>")
         self.add_command("time", self.cmd_time, usage="[timezone_offset]")
@@ -626,32 +625,6 @@ class essentials(minqlxtended.Plugin):
         """ Provide minqlxtended version information. """
         channel.reply("minqlxtended: ^6{}^7 - Plugins: ^6{}".format(minqlxtended.__version__, minqlxtended.__plugins_version__))
         channel.reply("See ^4github.com/tjone270/minqlxtended^7 for more information.")
-    
-    def cmd_db(self, player, msg, channel):
-        """ Prints the value of a key in the database. """
-        if len(msg) < 2:
-            return minqlxtended.RET_USAGE
-        
-        try:
-            if msg[1] not in self.db:
-                channel.reply("The key is not present in the database.")
-            else:
-                t = self.db.type(msg[1])
-                if t == "string":
-                    out = self.db[msg[1]]
-                elif t == "list":
-                    out = str(self.db.lrange(msg[1], 0, -1))
-                elif t == "set":
-                    out = str(self.db.smembers(msg[1]))
-                elif t == "zset":
-                    out = str(self.db.zrange(msg[1], 0, -1, withscores=True))
-                else:
-                    out = str(self.db.hgetall(msg[1]))
-                
-                channel.reply(out)
-        except Exception as e:
-            channel.reply("^1{}^7: {}".format(e.__class__.__name__, e))
-            raise
 
     def cmd_first_seen(self, player, msg, channel):
         """ Responds with the first time a player was seen on the server. """

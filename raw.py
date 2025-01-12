@@ -27,6 +27,7 @@ class raw(minqlxtended.Plugin):
             client_cmd_pass=False, usage="<python_code>")
         self.add_command(("eval", "pyeval"), self.cmd_eval, 5,
             client_cmd_pass=False, usage="<python_code>")
+        self.add_command(("db", "database"), self.cmd_db, 5, usage="<key> [value]")
 
     def cmd_exec(self, player, msg, channel):
         """ 'exec' arbitrary Python code. """
@@ -49,3 +50,29 @@ class raw(minqlxtended.Plugin):
             except Exception as e:
                 channel.reply("^1{}^7: {}".format(e.__class__.__name__, e))
                 raise
+
+    def cmd_db(self, player, msg, channel):
+        """ Prints the value of a key in the database. """
+        if len(msg) < 2:
+            return minqlxtended.RET_USAGE
+        
+        try:
+            if msg[1] not in self.db:
+                channel.reply("The key is not present in the database.")
+            else:
+                t = self.db.type(msg[1])
+                if t == "string":
+                    out = self.db[msg[1]]
+                elif t == "list":
+                    out = str(self.db.lrange(msg[1], 0, -1))
+                elif t == "set":
+                    out = str(self.db.smembers(msg[1]))
+                elif t == "zset":
+                    out = str(self.db.zrange(msg[1], 0, -1, withscores=True))
+                else:
+                    out = str(self.db.hgetall(msg[1]))
+                
+                channel.reply(out)
+        except Exception as e:
+            channel.reply(f"^1{e.__class__.__name__}^7: {e}")
+            raise
