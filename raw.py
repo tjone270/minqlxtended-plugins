@@ -23,11 +23,10 @@ import minqlxtended
 
 class raw(minqlxtended.Plugin):
     def __init__(self):
-        self.add_command(("exec", "pyexec"), self.cmd_exec, 5,
-            client_cmd_pass=False, usage="<python_code>")
-        self.add_command(("eval", "pyeval"), self.cmd_eval, 5,
-            client_cmd_pass=False, usage="<python_code>")
+        self.add_command(("exec", "pyexec"), self.cmd_exec, 5, client_cmd_pass=False, usage="<python_code>")
+        self.add_command(("eval", "pyeval"), self.cmd_eval, 5, client_cmd_pass=False, usage="<python_code>")
         self.add_command(("db", "database"), self.cmd_db, 5, usage="<key> [value]")
+
 
     def cmd_exec(self, player, msg, channel):
         """ 'exec' arbitrary Python code. """
@@ -37,7 +36,7 @@ class raw(minqlxtended.Plugin):
             try:
                 exec(" ".join(msg[1:]))
             except Exception as e:
-                channel.reply("^1{}^7: {}".format(e.__class__.__name__, e))
+                channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 raise
 
     def cmd_eval(self, player, msg, channel):
@@ -48,7 +47,7 @@ class raw(minqlxtended.Plugin):
             try:
                 channel.reply(str(eval(" ".join(msg[1:]))))
             except Exception as e:
-                channel.reply("^1{}^7: {}".format(e.__class__.__name__, e))
+                channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 raise
 
     def cmd_db(self, player, msg, channel):
