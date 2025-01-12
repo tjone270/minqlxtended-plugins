@@ -21,7 +21,7 @@ class vpnblock(minqlxtended.Plugin):
         self._update_cache()
 
     def handle_player_connect(self, player):
-        if self.get_cvar("qlx_blockVpnConnections", bool) and self._vpn_networks:
+        if (self.get_cvar("qlx_blockVpnConnections", bool)) and (self._vpn_networks) and (not player.is_bot):
             player_address = ipaddress.ip_address(player.ip)
             for vpn_network in self._vpn_networks:
                 if player_address in vpn_network:
