@@ -29,6 +29,7 @@ class permission(minqlxtended.Plugin):
     def __init__(self):
         self.add_command("setperm", self.cmd_setperm, 5, usage="<id> <level>")
         self.add_command("getperm", self.cmd_getperm, 5, usage="<id>")
+        self.add_command("listperms", self.cmd_listperms, 5)
         # myperm can only be used in-game.
         self.add_command("myperm", self.cmd_myperm,
             channels=("chat", "red_team_chat", "blue_team_chat", "spectator_chat", "free_chat", "client_command"))
@@ -89,6 +90,24 @@ class permission(minqlxtended.Plugin):
         else:
             name = target_player.name if target_player else str(ident)
             channel.reply(f"^6{name}^7 has permission level ^6{perm}^7.")
+
+    @minqlxtended.thread
+    def cmd_listperms(self, player, msg, channel):
+        """ Lists all players with a permission level greater than 0. """
+
+        players_permissions = {}
+        for key in self.db.keys("minqlx:players:*:permission"):
+            steam_id = int(key.split(":")[2])
+            permission = int(self.db.get(key))
+
+            if permission > 0:
+                players_permissions[steam_id] = permission
+
+        players_permissions = dict(sorted(players_permissions.items(), key=lambda x:x[1]))
+
+        channel.reply("^7Permissions list:")
+        for steam_id, permission in players_permissions.items():
+            channel.reply(" {}^7: ^6{}^7".format(steam_id, permission))
 
     def cmd_myperm(self, player, msg, channel):
         """ Respond with the calling player's permission level. """
