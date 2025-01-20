@@ -32,7 +32,7 @@ class queue(minqlxtended.Plugin):
         self.add_hook("client_command", self.handle_client_command)
         self.add_hook("vote_ended", self.handle_vote_ended)
         self.add_hook("console_print", self.handle_console_print)
-        self.add_command(("q", "queue"), self.cmd_lq)
+        self.add_command(("q", "queue", "que"), self.cmd_lq)
         self.add_command("afk", self.cmd_afk, usage="<optional player ID>")
         self.add_command("here", self.cmd_playing)
         self.add_command(("teamsize", "ts"), self.cmd_teamsize, priority=minqlxtended.PRI_HIGH)
@@ -293,7 +293,7 @@ class queue(minqlxtended.Plugin):
                         tag += ' '
                     tag += self.db[tag_key]
                     
-                cs = minqlxtended.parse_variables(value, ordered=True)
+                cs = minqlxtended.parse_variables(value)
                 cs["xcn"] = tag
                 cs["cn"] = tag
                 new_cs = "".join([f"\\{key}\\{cs[key]}" for key in cs])

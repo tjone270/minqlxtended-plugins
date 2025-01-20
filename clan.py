@@ -56,7 +56,7 @@ class clan(minqlxtended.Plugin):
         if len(msg) < 2:
             if tag_key in self.db:
                 del self.db[tag_key]
-                cs = minqlxtended.parse_variables(minqlxtended.get_configstring(index), ordered=True)
+                cs = minqlxtended.parse_variables(minqlxtended.get_configstring(index))
                 del cs["cn"]
                 del cs["xcn"]
                 new_cs = "".join([f"\\{key}\\{cs[key]}" for key in cs]).lstrip("\\")
