@@ -37,7 +37,7 @@ class plugin_manager(minqlxtended.Plugin):
                 channel.reply(f"Plug-in ^6{msg[1]}^7 has been successfully loaded.")
             except Exception as e:
                 channel.reply(f"Plug-in ^6{msg[1]}^7 has failed to load:")
-                channel.reply(f" ^1{e.__class__.__name__}^7: {e}")
+                channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 minqlxtended.log_exception(self)
     
     def cmd_unload(self, player, msg, channel):
@@ -50,7 +50,7 @@ class plugin_manager(minqlxtended.Plugin):
                 channel.reply(f"Plug-in ^6{msg[1]}^7 has been successfully unloaded.")
             except Exception as e:
                 channel.reply(f"Plug-in ^6{msg[1]}^7 has failed to unload:")
-                channel.reply(f" ^1{e.__class__.__name__}^7: {e}")
+                channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 minqlxtended.log_exception(self)
     
     def cmd_reload(self, player, msg, channel):
@@ -67,7 +67,7 @@ class plugin_manager(minqlxtended.Plugin):
                     channel.reply(f"Plug-in ^6{msg[1]}^7 has been successfully reloaded.")
                 except Exception as e:
                     channel.reply(f"Plug-in ^6{msg[1]}^7 has failed to reload:")
-                    channel.reply(f" ^1{e.__class__.__name__}^7: {e}")
+                    channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                     minqlxtended.log_exception(self)
 
             f()
@@ -82,7 +82,7 @@ class plugin_manager(minqlxtended.Plugin):
                 minqlxtended.load_preset_plugins()
             except Exception as e:
                 channel.reply("Plug-ins failed to load:")
-                channel.reply(f" ^1{e.__class__.__name__}^7: {e}")
+                channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 minqlxtended.log_exception(self)
 
             channel.reply("Successfully loaded all plug-ins in ^6qlx_plugins^7.")
@@ -96,7 +96,7 @@ class plugin_manager(minqlxtended.Plugin):
                     minqlxtended.unload_plugin(plugin)
                 except Exception as e:
                     channel.reply(f"Plug-in ^6{plugin}^7 failed to unload:")
-                    channel.reply(f" ^1{e.__class__.__name__}^7: {e}")
+                    channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                     minqlxtended.log_exception(self)
 
         channel.reply(f"Successfully unloaded all plug-ins except {self.__class__.__name__}.")
@@ -113,7 +113,7 @@ class plugin_manager(minqlxtended.Plugin):
                         minqlxtended.reload_plugin(plugin)
                     except Exception as e:
                         channel.reply(f"Plug-in ^6{plugin}^7 failed to reload:")
-                        channel.reply(f" ^1{e.__class__.__name__}^7: {e}")
+                        channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                         minqlxtended.log_exception(self)
 
             channel.reply(f"Successfully reloaded all plug-ins except {self.__class__.__name__}.")
