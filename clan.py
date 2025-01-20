@@ -78,7 +78,7 @@ class clan(minqlxtended.Plugin):
         # If the player already has a clan, we need to edit the current
         # configstring. We can't just append cn and xcn.
         tag = self.clean_tag(msg[1])
-        cs = minqlxtended.parse_variables(minqlxtended.get_configstring(index), ordered=True)
+        cs = minqlxtended.parse_variables(minqlxtended.get_configstring(index))
         cs["xcn"] = tag
         cs["cn"] = tag
         new_cs = "".join([f"\\{key}\\{cs[key]}" for key in cs])
