@@ -872,7 +872,7 @@ class essentials(minqlxtended.Plugin):
             if player.steam_id == minqlxtended.owner(): 
                 type_chars[1] = "*" # owner
             elif player.is_bot:
-                type_chars[0] = ""
+                type_chars[0] = "^00^7"
                 type_chars[1] = "ʙ" # bot
 
             ping_colour = "7"
