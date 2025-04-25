@@ -30,6 +30,8 @@ class log(minqlxtended.Plugin):
         self.add_hook("player_disconnect", self.handle_player_disconnect, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("chat", self.handle_chat, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("command", self.handle_command, priority=minqlxtended.PRI_LOWEST)
+        self.add_hook("vote_started", self.handle_vote_started, priority=minqlxtended.PRI_LOWEST)
+        self.add_hook("vote_ended", self.handle_vote_ended, priority=minqlxtended.PRI_LOWEST)
 
         self.set_cvar_once("qlx_chatlogs", "10")
         self.set_cvar_once("qlx_chatlogsSize", str(3*10**6)) # 3 MB
@@ -66,3 +68,14 @@ class log(minqlxtended.Plugin):
 
     def handle_command(self, caller, command, args):
         self.chatlog.info(self.clean_text(f"[CMD] <{caller}:{caller.steam_id}> {args}"))
+
+    def handle_vote_started(self, caller, vote, args):
+        vote = vote.lower().strip()
+        args = args.lower().strip().replace('""', '')
+        if caller:
+            self.chatlog.info(self.clean_text(f"[VOTE_STARTED] <{caller}:{caller.steam_id}> {vote} {args if args else ''}"))
+        else:
+            self.chatlog.info(self.clean_text(f"[VOTE_STARTED] <CustomVote:{minqlxtended.owner()}> {vote} {args}"))
+
+    def handle_vote_ended(self, votes, vote, args, passed):
+        self.chatlog.info(self.clean_text(f"[VOTE_ENDED] {votes[0]} voted yes, {votes[1]} voted no. Vote {'passed' if passed else 'failed'}."))
