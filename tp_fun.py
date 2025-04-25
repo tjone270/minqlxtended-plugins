@@ -18,7 +18,7 @@ class tp_fun(minqlxtended.Plugin):
         self.add_command("fuckyou", self.cmd_printfu, 5)
         self.add_command("drawline", self.cmd_drawline, 5, usage="<start plane> <from> <to> <step> <z start>")
         self.add_command("bury", self.cmd_bury, 3, usage="<id>")
-        self.add_command("specplay", self.cmd_spec_play, 5)
+        self.add_command("specplay", self.cmd_spec_play, 4)
         self.add_command("digup", self.cmd_digup, 3, usage="<id>")
 
         self.plugin_version = "2.1"
@@ -57,7 +57,7 @@ class tp_fun(minqlxtended.Plugin):
         except minqlxtended.NonexistentPlayerException:
             return minqlxtended.RET_USAGE
 
-        if self.game.state == "in_progress":
+        if self.game.state == "in_progress" and not self.db.has_permission(player, 5):
             player.tell("This command can be used during warm-up only.")
             return minqlxtended.RET_STOP_ALL
 
@@ -73,7 +73,7 @@ class tp_fun(minqlxtended.Plugin):
         except minqlxtended.NonexistentPlayerException:
             return minqlxtended.RET_USAGE
 
-        if self.game.state == "in_progress":
+        if self.game.state == "in_progress" and not self.db.has_permission(player, 5):
             player.tell("This command can be used during warm-up only.")
             return minqlxtended.RET_STOP_ALL
 
