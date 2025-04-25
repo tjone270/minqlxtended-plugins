@@ -9,7 +9,7 @@ class aliases(minqlxtended.Plugin):
         self.add_command("alias", self.cmd_alias, usage="<id>")
         self.add_command("clearaliases", self.cmd_clearaliases, 5)
 
-        self.set_cvar_once("qlx_aliasLimitOutputLines", "15") 
+        self.set_cvar_once("qlx_aliasLimitOutputLines", "15")
 
         self.plugin_version = "2.1"
 
@@ -17,40 +17,40 @@ class aliases(minqlxtended.Plugin):
 
     @minqlxtended.thread
     def cmd_alias(self, player, msg, channel):
-        """ Provides a list of aliases the server is aware of for the player ID/Steam ID provided. """
+        """Provides a list of aliases the server is aware of for the player ID/Steam ID provided."""
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
         try:
             ident = int(msg[1])
             if 0 <= ident < 64:
-                steam_id = self.player(ident).steam_id
-                player_name = self.player(ident).name
+                target_player = self.player(ident)
+                if target_player.is_bot:
+                    channel.reply("Bots do not have aliases!")
+                    return
+                steam_id = target_player.steam_id
+                player_name = target_player.name
                 player_iplist = list(self.db.smembers(f"minqlx:players:{steam_id}:ips"))
             else:
                 steam_id = ident
                 player_name = ident
-            player_iplist = list(self.db.smembers(f"minqlx:players:{steam_id}:ips"))
+                player_iplist = list(self.db.smembers(f"minqlx:players:{steam_id}:ips"))
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
         except minqlxtended.NonexistentPlayerError:
             channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
             return
-        
         data = dict()
         steamids = list()
 
         for ip_address in player_iplist:
             steamids += list(self.db.smembers(f"minqlx:ips:{ip_address}"))
-        
+
         steamids = self.dedupe(steamids)
 
         for steamid in steamids:
             data[steamid] = list(self.db.lrange(f"minqlx:players:{steamid}", 0, -1))
-        
-        lineused = 1
-        response = f"{player_name}^7's aliases:\n"
 
         for sid, names in data.items():
             if lineused == self._linelimit:
@@ -67,9 +67,8 @@ class aliases(minqlxtended.Plugin):
                     used_names.append(name)
 
         channel.reply(response)
-        
     def cmd_clearaliases(self, player, msg, channel):
-        """ Clears all alias records from the server database. """
+        """Clears all alias records from the server database."""
         if player.steamid != minqlxtended.owner():
             player.tell("You must be the owner of the server to execute this command.")
             return
