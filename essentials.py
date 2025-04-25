@@ -58,7 +58,7 @@ class essentials(minqlxtended.Plugin):
         self.add_command("no", self.cmd_no, 2)
         self.add_command("random", self.cmd_random, 1, usage="<limit>")
         self.add_command("cointoss", self.cmd_cointoss, 1)
-        self.add_command("switch", self.cmd_switch, 1, usage="<id> <id>")
+        self.add_command(("switch", "swap"), self.cmd_switch, 1, usage="<id> <id>")
         self.add_command("red", self.cmd_red, 1, usage="<id>")
         self.add_command("blue", self.cmd_blue, 1, usage="<id>")
         self.add_command(("spectate", "spec", "spectator"), self.cmd_spectate, 1, usage="<id>")
