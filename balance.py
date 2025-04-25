@@ -65,7 +65,7 @@ class balance(minqlxtended.Plugin):
         self.set_cvar_once("qlx_balanceLocalExpires", "0")
         self.set_cvar_once("qlx_balanceUrl", "qlstats.net")
         self.set_cvar_once("qlx_balanceAuto", "1")
-        self.set_cvar_once("qlx_balanceMinimumSuggestionDiff", "25")
+        self.set_cvar_once("qlx_balanceMinimumSuggestionDiff", "30")
         self.set_cvar_once("qlx_balanceCancelSuggestionAfterRound", "1")
         self.set_cvar_once("qlx_balanceApi", "elo") 
 
@@ -103,7 +103,7 @@ class balance(minqlxtended.Plugin):
                     return 
 
             if agreed_player:
-                self.msg(f"As only ^4{agreed_player.clean_name}^7 agreed, the suggestion has been cancelled.")
+                self.msg(f"As only ^6{agreed_player.clean_name}^7 agreed, the suggestion has been cancelled.")
 
             self.suggested_pair = None
             self.suggested_agree = [False, False]
@@ -654,7 +654,14 @@ class balance(minqlxtended.Plugin):
             return
         
         if p1.team != "spectator" and p2.team != "spectator":
-            self.switch(p1, p2)            
-        
+            p1stats, p1score = p1.stats, p1.score
+            p2stats, p2score = p2.stats, p2.score
+            self.switch(p1, p2)      
+            @minqlxtended.delay(1)
+            def f(p1, p2, p1stats, p2stats, p1score, p2score):
+                p1.stats, p1.score = p1stats, p1score
+                p2.stats, p2.score = p2stats, p2score
+            f(p1, p2, p1stats, p2stats, p1score, p2score)
+            
         self.suggested_pair = None
         self.suggested_agree = [False, False]
