@@ -24,6 +24,7 @@ import os
 
 from logging.handlers import RotatingFileHandler
 
+
 class log(minqlxtended.Plugin):
     def __init__(self):
         self.add_hook("player_connect", self.handle_player_connect, priority=minqlxtended.PRI_LOWEST)
@@ -32,9 +33,10 @@ class log(minqlxtended.Plugin):
         self.add_hook("command", self.handle_command, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("vote_started", self.handle_vote_started, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("vote_ended", self.handle_vote_ended, priority=minqlxtended.PRI_LOWEST)
+        self.add_hook("map", self.handle_map, priority=minqlxtended.PRI_LOWEST)
 
         self.set_cvar_once("qlx_chatlogs", "10")
-        self.set_cvar_once("qlx_chatlogsSize", str(3*10**6)) # 3 MB
+        self.set_cvar_once("qlx_chatlogsSize", str(3 * 10**6))  # 3 MB
 
         self.chatlog = logging.Logger(__name__)
         file_dir = os.path.join(minqlxtended.get_cvar("fs_homepath"), "chatlogs")
@@ -48,22 +50,22 @@ class log(minqlxtended.Plugin):
         file_handler = RotatingFileHandler(file_path, encoding="utf-8", maxBytes=maxlogsize, backupCount=maxlogs)
         file_handler.setFormatter(file_fmt)
         self.chatlog.addHandler(file_handler)
-        self.chatlog.info(f"{'='*29} Logger started @ {datetime.datetime.now()} {'='*29}")
+        self.chatlog.info(f"{'=' * 29} Logger started @ {datetime.datetime.now()} {'=' * 29}")
 
     def handle_player_connect(self, player):
-        self.chatlog.info(f"{player.clean_name}:{player.steam_id}:{player.ip} connected.")
+        self.chatlog.info(f"{player.clean_name}:{player.steam_id}:{player.ip if not player.is_bot else 'bot'} connected.")
 
     def handle_player_disconnect(self, player, reason):
         if reason and reason[-1] not in ("?", "!", "."):
             reason = reason + "."
-        
+
         self.chatlog.info(self.clean_text(f"{player}:{player.steam_id} {reason}"))
 
     def handle_chat(self, player, msg, channel):
         channel_name = ""
         if channel != "chat":
             channel_name = f"[{str(channel).upper()}] "
-        
+
         self.chatlog.info(self.clean_text(f"{channel_name}<{player}:{player.steam_id}> {msg}"))
 
     def handle_command(self, caller, command, args):
@@ -71,7 +73,7 @@ class log(minqlxtended.Plugin):
 
     def handle_vote_started(self, caller, vote, args):
         vote = vote.lower().strip()
-        args = args.lower().strip().replace('""', '')
+        args = args.lower().strip().replace('""', "")
         if caller:
             self.chatlog.info(self.clean_text(f"[VOTE_STARTED] <{caller}:{caller.steam_id}> {vote} {args if args else ''}"))
         else:
@@ -79,3 +81,6 @@ class log(minqlxtended.Plugin):
 
     def handle_vote_ended(self, votes, vote, args, passed):
         self.chatlog.info(self.clean_text(f"[VOTE_ENDED] {votes[0]} voted yes, {votes[1]} voted no. Vote {'passed' if passed else 'failed'}."))
+
+    def handle_map(self, mapname, factory):
+        self.chatlog.info(self.clean_text(f"[MAP] {mapname} ({factory})"))
