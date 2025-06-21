@@ -630,7 +630,7 @@ class essentials(minqlxtended.Plugin):
         """Provide minqlxtended version information."""
         channel.reply(f"minqlxtended: ^6{minqlxtended.__version__}^7 - Plugins: ^6{minqlxtended.__plugins_version__}")
         channel.reply("See ^4github.com/tjone270/minqlxtended^7 for more information.")
-        channel.reply("See ^4thepurgery.com/commands^7 for the commands list.")
+        channel.reply("See ^4thepurgery.com/customcommands^7 for the commands list.")
 
     def cmd_first_seen(self, player, msg, channel):
         """Responds with the first time a player was seen on the server."""
