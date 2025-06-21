@@ -8,10 +8,8 @@ SUPPORTED_GAMETYPES = ("ad", "ca", "ctf", "dom", "ft", "tdm")
 class last_in(minqlxtended.Plugin):
     def __init__(self):
         self.add_hook("team_switch", self.handle_team_switch, priority=minqlxtended.PRI_LOW)
-        self.add_hook("client_command", self.handle_client_command, priority=minqlxtended.PRI_HIGH)
-        self.add_hook("new_game", self.handle_new_game)
-        self.add_hook("map", self.handle_map)
-        self.add_command("lastin", self.cmd_last_in)
+        self.add_hook("team_switch_attempt", self.handle_team_switch_attempt, priority=minqlxtended.PRI_HIGH)
+        self.add_command("lastin", self.cmd_last_in, client_cmd_perm=0)
 
         self.last_players_in = {"red": False, "blue": False}
         self.transitioning_players = []
@@ -23,36 +21,23 @@ class last_in(minqlxtended.Plugin):
             self.transitioning_players.remove(player)
             self.last_players_in[new_team] = player
 
-    def handle_client_command(self, player, cmd):
-        cmd = cmd.lower().split(" ")
-        
-        if (cmd[0] != "team") or (not player.valid):
-            return
-        else:
-            team = cmd[1]
-
-        if (team == "a") or (team == "b") or (team == "r"):
+    def handle_team_switch_attempt(self, player, old_team, new_team):
+        if not new_team.lower().startswith("s"):
             self.transitioning_players.append(player)
-
-    def handle_new_game(self, *args, **kwargs):
-        self.last_players_in = {"red": False, "blue": False}
-        self.transitioning_players = []
-
-    def handle_map(self, *args, **kwargs):
-        self.last_players_in = {"red": False, "blue": False}
-        self.transitioning_players = []
 
     def cmd_last_in(self, player, msg, channel):
         """ Display the last players who joined the blue/red team. """
         if self.game.type_short not in SUPPORTED_GAMETYPES:
-            channel.reply("The ^6{}^7 game type is not supported by this command.".format(self.game.type_short.upper()))
+            channel.reply(f"The ^6{self.game.type_short.upper()}^7 game type is not supported by this command.")
             return
 
         red_msg, red_id = self.get_player_string(self.last_players_in["red"], "red")
         blue_msg, blue_id = self.get_player_string(self.last_players_in["blue"], "blue")
         
         if self.db.has_permission(player, 2):  # display more information (player ID, etc)
-            channel.reply("Red: (^6{}^7) ^1{}^7 ^6|^7 Blue: (^6{}^7) ^4{}^7".format(red_id, red_msg, blue_id, blue_msg))
+            channel.reply(f"Red: (^6{red_id}^7) ^1{red_msg}^7 ^6|^7 Blue: (^6{blue_id}^7) ^4{blue_msg}^7")
+        else:
+            channel.reply(f"Red: ^1{red_msg}^7 ^6|^7 Blue: ^4{blue_msg}^7")
         else:
             channel.reply("Red: ^1{}^7 ^6|^7 Blue: ^4{}^7".format(red_msg, blue_msg))
 
@@ -63,13 +48,13 @@ class last_in(minqlxtended.Plugin):
         try:
             player.update()
         except minqlxtended.NonexistentPlayerError:
-            return "{} ^3(disconnected)".format(player.clean_name), "No ID"
+            return f"{player.clean_name} ^3(disconnected)", "No ID"
 
         if (not player.valid):
-            return "{} ^3(disconnected)".format(player.clean_name), "No ID"
+            return f"{player.clean_name} ^3(disconnected)", "No ID"
 
         if (player.team != team):
-            return "{} ^3(left team)".format(player.clean_name), player.id
+            return f"{player.clean_name} ^3(left team)", player.id
 
         return player.clean_name, player.id
 
