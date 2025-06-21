@@ -10,6 +10,7 @@ class last_in(minqlxtended.Plugin):
         self.add_hook("team_switch", self.handle_team_switch, priority=minqlxtended.PRI_LOW)
         self.add_hook("team_switch_attempt", self.handle_team_switch_attempt, priority=minqlxtended.PRI_HIGH)
         self.add_command("lastin", self.cmd_last_in, client_cmd_perm=0)
+        self.add_command(("c", "count"), self.cmd_count, client_cmd_perm=0)
 
         self.last_players_in = {"red": False, "blue": False}
         self.transitioning_players = []
@@ -38,8 +39,15 @@ class last_in(minqlxtended.Plugin):
             channel.reply(f"Red: (^6{red_id}^7) ^1{red_msg}^7 ^6|^7 Blue: (^6{blue_id}^7) ^4{blue_msg}^7")
         else:
             channel.reply(f"Red: ^1{red_msg}^7 ^6|^7 Blue: ^4{blue_msg}^7")
+
+    def cmd_count(self, player, msg, channel):
+        """Lists the count of players on each team. Useful for when the scoreboard is exceeded."""
+        teams = self.teams()
+        is_team_game = self.get_cvar("g_gametype", int) >= 3
+        if is_team_game:
+            channel.reply(f"^1RED TEAM: {len(teams['red'])} ^6|^4 BLUE TEAM: {len(teams['blue'])} ^6|^7 SPECTATORS: {len(teams['spectator'])}")
         else:
-            channel.reply("Red: ^1{}^7 ^6|^7 Blue: ^4{}^7".format(red_msg, blue_msg))
+            channel.reply(f"^4IN-GAME: {len(teams['free'])} ^6|^7 SPECTATORS: {len(teams['spectator'])}")
 
     def get_player_string(self, player, team):
         if (player == False):
