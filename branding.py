@@ -31,9 +31,11 @@ CS_AUTHOR2 = 679
 
 class branding(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("new_game", self.handle_map)
         self.add_hook("player_connect", self.handle_player_connect)
         self.add_hook("player_loaded", self.handle_player_loaded)
+        self.add_hook("player_disconnect", self.handle_player_disconnect)
         self.add_hook("game_countdown", self.handle_game_countdown)
         self.add_hook("game_end", self.handle_game_end)
         
@@ -43,7 +45,7 @@ class branding(minqlxtended.Plugin):
         
         self.plugin_version = "2.3"
 
-        self.connected_players = []
+        self.connected_players = set()
 
         self._cache_variables()
 
@@ -94,24 +96,28 @@ class branding(minqlxtended.Plugin):
 
             r = rotating_colors()
             res = ""
-            for i in range(len(message)):
-                res += f"^{next(r)}{message[i]}"
+            for ch in self.clean_text(message):
+                res += f"^{next(r)}{ch}"
+            message = res
 
         minqlxtended.set_configstring(CS_MESSAGE, message)
         minqlxtended.set_configstring(CS_AUTHOR, author)
         minqlxtended.set_configstring(CS_AUTHOR2, author2)   
 
     def handle_player_connect(self, player):
-        if (self._qlx_connectMessage) and (player not in self.connected_players):
-            self.connected_players.append(player)
+        if (self._qlx_connectMessage) and (player.steam_id not in self.connected_players):
+            self.connected_players.add(player.steam_id)
             return f"{self._qlx_connectMessage}\n^7This server is running ^4branding.py^7. ^2http://github.com/tjone270/Quake-Live^7.\n"
-        
+
     def handle_player_loaded(self, player):
         if self._qlx_loadedMessage:
             self.center_print(self._qlx_loadedMessage, player.id)
 
-        if (self._qlx_connectMessage) and (player in self.connected_players):
-            self.connected_players.remove(player)
+        self.connected_players.discard(player.steam_id)
+
+    def handle_player_disconnect(self, player, reason):
+        # Prune players who disconnected before fully loading, so the set doesn't grow unbounded.
+        self.connected_players.discard(player.steam_id)
 
     def handle_game_countdown(self):
         if self._qlx_countdownMessage:

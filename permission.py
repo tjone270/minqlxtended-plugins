@@ -28,6 +28,7 @@ import minqlxtended
 
 class permission(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_command("setperm", self.cmd_setperm, 5, usage="<id> <level>")
         self.add_command("getperm", self.cmd_getperm, 5, usage="<id>")
         self.add_command("listperms", self.cmd_listperms, 5)
@@ -82,30 +83,33 @@ class permission(minqlxtended.Plugin):
         except ValueError:
             channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
             return
+        except minqlxtended.NonexistentPlayerError:
+            channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
+            return
 
         perm = self.db.get_permission(ident)
-        if perm is None:
-            channel.reply(f"I do not know ^6{msg[1]}^7.")
-        else:
-            name = target_player.name if target_player else str(ident)
-            channel.reply(f"^6{name}^7 has permission level ^6{perm}^7.")
+        name = target_player.name if target_player else str(ident)
+        channel.reply(f"^6{name}^7 has permission level ^6{perm}^7.")
 
     @minqlxtended.thread
     def cmd_listperms(self, player, msg, channel):
         """Lists all players with a permission level greater than 0."""
 
+        # Use SCAN rather than KEYS so we don't block the Redis server on large datasets,
+        # then batch the permission/name lookups into two round-trips instead of 2N.
+        perm_keys = list(self.db.scan_iter(match="minqlx:players:*:permission"))
+        steam_ids = [key.split(":")[2] for key in perm_keys]
+
         players_permissions = {}
-        for key in self.db.keys("minqlx:players:*:permission"):
-            steam_id = int(key.split(":")[2])
-
-            player_name = self.db.get(f"minqlx:players:{steam_id}:current_name")
-            if not player_name:
-                player_name = steam_id
-
-            permission = int(self.db.get(key))
-
-            if permission > 0:
-                players_permissions[player_name] = permission
+        if perm_keys:
+            perm_values = self.db.mget(perm_keys)
+            name_values = self.db.mget([f"minqlx:players:{sid}:current_name" for sid in steam_ids])
+            for sid, perm_value, name_value in zip(steam_ids, perm_values, name_values):
+                if not perm_value:
+                    continue
+                permission = int(perm_value)
+                if permission > 0:
+                    players_permissions[name_value if name_value else sid] = permission
 
         players_permissions = dict(sorted(players_permissions.items(), key=lambda x: x[1]))
 

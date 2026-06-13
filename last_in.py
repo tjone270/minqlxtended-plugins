@@ -7,24 +7,31 @@ SUPPORTED_GAMETYPES = ("ad", "ca", "ctf", "dom", "ft", "tdm")
 
 class last_in(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("team_switch", self.handle_team_switch, priority=minqlxtended.PRI_LOW)
         self.add_hook("team_switch_attempt", self.handle_team_switch_attempt, priority=minqlxtended.PRI_HIGH)
+        self.add_hook("player_disconnect", self.handle_player_disconnect)
         self.add_command("lastin", self.cmd_last_in, client_cmd_perm=0)
         self.add_command(("c", "count"), self.cmd_count, client_cmd_perm=0)
 
         self.last_players_in = {"red": False, "blue": False}
-        self.transitioning_players = []
+        # Track by steam_id so denied switch attempts (which never produce a team_switch) can't
+        # leak unbounded; bounded to the connected player count and pruned on disconnect.
+        self.transitioning_players = set()
 
 
     @minqlxtended.next_frame
     def handle_team_switch(self, player, old_team, new_team):
-        if player in self.transitioning_players:
-            self.transitioning_players.remove(player)
+        if player.steam_id in self.transitioning_players:
+            self.transitioning_players.discard(player.steam_id)
             self.last_players_in[new_team] = player
 
     def handle_team_switch_attempt(self, player, old_team, new_team):
         if not new_team.lower().startswith("s"):
-            self.transitioning_players.append(player)
+            self.transitioning_players.add(player.steam_id)
+
+    def handle_player_disconnect(self, player, reason):
+        self.transitioning_players.discard(player.steam_id)
 
     def cmd_last_in(self, player, msg, channel):
         """ Display the last players who joined the blue/red team. """

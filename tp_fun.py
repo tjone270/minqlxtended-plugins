@@ -7,6 +7,7 @@ from random import randint
 
 class tp_fun(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_command(("msg", "message"), self.cmd_screenmessage, 1, usage="[id] <text>") # Merozollo requested
         self.add_command("smile", self.cmd_elated_emoji) # Purger requested
         self.add_command("pentagram", self.cmd_pentagram, 1, usage="<id>") # Merozollo requested
@@ -43,7 +44,7 @@ class tp_fun(minqlxtended.Plugin):
             p.ammo(reset=True)
             @minqlxtended.next_frame
             def next_frame(p):
-                p.weapon = 15
+                p.weapon(15)
             next_frame(p)
             player.tell(f"{p}^7 is spawned {z_pos_boost} units above you.")
 
@@ -53,9 +54,13 @@ class tp_fun(minqlxtended.Plugin):
             return minqlxtended.RET_USAGE
 
         try:
-            target_player = self.player(int(msg[1]))
-        except minqlxtended.NonexistentPlayerException:
-            return minqlxtended.RET_USAGE
+            i = int(msg[1])
+            target_player = self.player(i)
+            if not (0 <= i < 64) or not target_player:
+                raise ValueError
+        except (ValueError, minqlxtended.NonexistentPlayerError):
+            player.tell("Invalid ID.")
+            return minqlxtended.RET_STOP_ALL
 
         if self.game.state == "in_progress" and not self.db.has_permission(player, 5):
             player.tell("This command can be used during warm-up only.")
@@ -69,9 +74,13 @@ class tp_fun(minqlxtended.Plugin):
             return minqlxtended.RET_USAGE
 
         try:
-            target_player = self.player(int(msg[1]))
-        except minqlxtended.NonexistentPlayerException:
-            return minqlxtended.RET_USAGE
+            i = int(msg[1])
+            target_player = self.player(i)
+            if not (0 <= i < 64) or not target_player:
+                raise ValueError
+        except (ValueError, minqlxtended.NonexistentPlayerError):
+            player.tell("Invalid ID.")
+            return minqlxtended.RET_STOP_ALL
 
         if self.game.state == "in_progress" and not self.db.has_permission(player, 5):
             player.tell("This command can be used during warm-up only.")
@@ -137,8 +146,11 @@ ______
             return minqlxtended.RET_USAGE
         
         try:
-            pentagramee = self.player(int(msg[1]))
-        except:
+            i = int(msg[1])
+            pentagramee = self.player(i)
+            if not (0 <= i < 64) or not pentagramee:
+                raise ValueError
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             player.tell("Invalid ID.")
             return
 

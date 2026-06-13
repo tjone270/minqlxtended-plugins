@@ -10,6 +10,7 @@ FLAG_NAME = "bypass_vpn_blocking"
 
 class vpnblock(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("map", self.handle_map_load)
         self.add_hook("player_connect", self.handle_player_connect)
 
@@ -99,9 +100,13 @@ class vpnblock(minqlxtended.Plugin):
 
     @minqlxtended.thread
     def _update_cache(self):
-        req = requests.get(url=VPN_IP_BLOCKS_URL)
+        try:
+            req = requests.get(url=VPN_IP_BLOCKS_URL, timeout=10)
+        except requests.RequestException as e:
+            self.msg(f"vpnblock: ^1Error^7 fetching the latest VPN network blocks: {e}")
+            return
         if req.ok:
             self._vpn_networks = [ipaddress.ip_network(cidr.strip()) for cidr in req.text.split()]
-            self.msg(f"vpnblock: Found ^6{len(self._vpn_networks)}^7 VPN network blocks to deny connections from.")
+            self.msg(f"vpnblock: Found ^6{len(self._vpn_networks):,}^7 VPN network blocks to deny connections from.")
         else:
             self.msg(f"vpnblock: Got ^1{req.status_code} ({req.reason})^7 when fetching the latest VPN network blocks.")

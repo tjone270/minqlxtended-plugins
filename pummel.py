@@ -17,6 +17,7 @@ PLAYER_KEY = "minqlx:players:{}"
 
 class pummel(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("kill", self.handle_kill)
         
         self.add_command("pummel", self.cmd_pummel)

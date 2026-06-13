@@ -27,9 +27,32 @@ _tag_key = "minqlx:players:{}:clantag"
 
 class clan(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("set_configstring", self.handle_set_configstring)
+        self.add_hook("player_loaded", self.handle_player_loaded)
+        self.add_hook("player_disconnect", self.handle_player_disconnect)
         self.add_command("clan", self.cmd_clan, usage="<clan_tag>", client_cmd_perm=0)
         self.add_command("setnoclan", self.cmd_setnoclan, 4, usage="<id>", client_cmd_perm=4)
+
+        # In-memory cache so the hot set_configstring path avoids 2-3 Redis round-trips
+        # on every player configstring change. steam_id -> {"tag": str|None, "no_clantag": bool}
+        self._cache = {}
+
+    def _load_cache(self, player):
+        """Read a player's clan tag and no-clantag flag from the DB once and cache them."""
+        tag_key = _tag_key.format(player.steam_id)
+        entry = {
+            "no_clantag": self.db.get_flag(player, NO_CLANTAG_FLAG_NAME),
+            "tag": self.db[tag_key] if tag_key in self.db else None,
+        }
+        self._cache[player.steam_id] = entry
+        return entry
+
+    def handle_player_loaded(self, player):
+        self._load_cache(player)
+
+    def handle_player_disconnect(self, player, reason):
+        self._cache.pop(player.steam_id, None)
 
     def handle_set_configstring(self, index, value):
         # The engine strips cn and xcn, so we can safely append it
@@ -44,27 +67,35 @@ class clan(minqlxtended.Plugin):
                 # has yet to be properly initialized. We can safely
                 # skip it because the clan will be set later.
                 return
-            
-            if self.db.get_flag(player, NO_CLANTAG_FLAG_NAME):
+
+            entry = self._cache.get(player.steam_id)
+            if entry is None:
+                entry = self._load_cache(player)
+
+            if entry["no_clantag"]:
                 return # Player is not allowed to use clan tags.
 
-            tag_key = _tag_key.format(player.steam_id)
-            if tag_key in self.db:
-                tag = self.db[tag_key]
+            if entry["tag"]:
+                tag = entry["tag"]
                 return value + f"\\cn\\{tag}\\xcn\\{tag}"
 
     def cmd_clan(self, player, msg, channel):
         """ Sets the player's clan tag to the string specified, or clears it if nothing specified. """
-        if self.db.get_flag(player, NO_CLANTAG_FLAG_NAME):
+        entry = self._cache.get(player.steam_id)
+        if entry is None:
+            entry = self._load_cache(player)
+
+        if entry["no_clantag"]:
             player.tell("You cannot modify your clan tag.")
             return minqlxtended.RET_STOP_EVENT
 
         index = CS_PLAYERS + player.id
         tag_key = _tag_key.format(player.steam_id)
-        
+
         if len(msg) < 2:
             if tag_key in self.db:
                 del self.db[tag_key]
+                entry["tag"] = None
                 cs = minqlxtended.parse_variables(minqlxtended.get_configstring(index))
                 del cs["cn"]
                 del cs["xcn"]
@@ -92,6 +123,7 @@ class clan(minqlxtended.Plugin):
         cs["cn"] = tag
         new_cs = "".join([f"\\{key}\\{cs[key]}" for key in cs])
         self.db[tag_key] = tag
+        entry["tag"] = tag
         minqlxtended.set_configstring(index, new_cs)
         self.msg(f"{player}^7 changed clan tag to {tag}")
         return minqlxtended.RET_STOP_EVENT
@@ -121,6 +153,10 @@ class clan(minqlxtended.Plugin):
 
         flag = self.db.get_flag(ident, NO_CLANTAG_FLAG_NAME)
         self.db.set_flag(ident, NO_CLANTAG_FLAG_NAME, not flag)
+
+        # Keep the in-memory cache consistent if this player is currently connected.
+        if ident in self._cache:
+            self._cache[ident]["no_clantag"] = not flag
 
         if not flag:
             channel.reply(f"{name}^7 is no longer allowed to use clan tags.")

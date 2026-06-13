@@ -13,6 +13,7 @@ PLAYER_DISALLOW_GAMEPLAY_MESSAGE = "Untrackable players are ^1not allowed^7 to j
 
 class untracked(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("new_game", self._cache_variables)
         self.add_hook("player_connect", self.handle_player_connect)
         self.add_hook("player_loaded", self.handle_player_loaded)
@@ -88,11 +89,16 @@ class untracked(minqlxtended.Plugin):
             return callback_untracked(player)
         
         url = f"{self._api_url}{player.steam_id}"
-        res = requests.get(url, headers={"X-QuakeLive-Map": self.game.map})
+        try:
+            res = requests.get(url, headers={"X-QuakeLive-Map": self.game.map}, timeout=5)
+        except requests.RequestException as e:
+            # Don't cache a result on failure; we'll retry on the next relevant event.
+            self.logger.warning(f"untracked: failed to query trackability for {player.steam_id}: {e}")
+            return
         if res.status_code == requests.codes.ok:
-            data = res.json()            
-            if str(player.steam_id) in data["untracked"]:
+            data = res.json()
+            if str(player.steam_id) in data.get("untracked", []):
                 self.untracked_players.add(player.steam_id)
                 return callback_untracked(player)
-        
+
         self.tracked_players.add(player.steam_id) # prevent future requests by caching the result per-game

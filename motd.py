@@ -103,20 +103,24 @@ class motd(minqlxtended.Plugin):
 
     def cmd_clearmotd(self, player, msg, channel):
         """ Clears the message of the day on this server. """
-        del self.db[self.motd_key]
-        player.tell("The MOTD has been cleared.")
+        if self.motd_key in self.db:
+            del self.db[self.motd_key]
+            player.tell("The MOTD has been cleared.")
+        else:
+            player.tell("No MOTD has been set.")
         return minqlxtended.RET_STOP_EVENT
 
     def cmd_clearmotdall(self, player, msg, channel):
         """ Clears the message of the day on all servers. """
         motds = [f"{MOTD_SET_KEY}:{m}" for m in self.db.smembers(MOTD_SET_KEY)]
-        self.db.delete(*motds)
+        if motds:
+            self.db.delete(*motds)
         player.tell("All MOTDs have been cleared.")
         return minqlxtended.RET_STOP_EVENT
 
     def cmd_addmotd(self, player, msg, channel):
         """ Appends the specified text to the existing message of the day on this server. """
-        motd = self.db[self.motd_key]
+        motd = self.db.get(self.motd_key)
         if not motd:
             self.db[self.motd_key] = " ".join(msg[1:])
             player.tell("No MOTD was set, so a new one was made.")

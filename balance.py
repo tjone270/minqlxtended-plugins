@@ -35,6 +35,7 @@ EXT_SUPPORTED_GAMETYPES = ("ad", "ca", "ctf", "dom", "ft", "tdm", "duel", "ffa")
 
 class balance(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("round_countdown", self.handle_round_countdown)
         self.add_hook("round_start", self.handle_round_start)
         self.add_hook("vote_ended", self.handle_vote_ended)
@@ -155,10 +156,9 @@ class balance(minqlxtended.Plugin):
                 # there is a second client with same steam id
                 return
 
-        if player.steam_id in self.player_info:
-            del self.player_info[player.steam_id]
-
         with self.ratings_lock:
+            if player.steam_id in self.player_info:
+                del self.player_info[player.steam_id]
             if player.steam_id in self.ratings:
                 del self.ratings[player.steam_id]
 
@@ -194,7 +194,14 @@ class balance(minqlxtended.Plugin):
         while attempts < MAX_ATTEMPTS:
             attempts += 1
             url = self._api_url + "+".join([str(sid) for sid in players])
-            res = requests.get(url, headers={"X-QuakeLive-Map": self.game.map})
+            try:
+                res = requests.get(url, headers={"X-QuakeLive-Map": self.game.map}, timeout=5)
+            except requests.RequestException as e:
+                # A hung/failed request must not leak this worker thread or strand the request
+                # (the callback would never fire). Treat it as a failed attempt and retry/abort.
+                self.logger.warning(f"balance: ratings request failed (attempt {attempts}): {e}")
+                last_status = -1
+                continue
             last_status = res.status_code
             if res.status_code != requests.codes.ok:
                 continue
@@ -250,10 +257,11 @@ class balance(minqlxtended.Plugin):
 
             # Saving player info
             try:
-                for player, data in js["playerinfo"].items():
-                    sid = int(player)
-                    self.player_info[sid] = js["playerinfo"][player]
-                    self.player_info[sid]["time"] = time.time()
+                with self.ratings_lock:
+                    for player, data in js["playerinfo"].items():
+                        sid = int(player)
+                        self.player_info[sid] = js["playerinfo"][player]
+                        self.player_info[sid]["time"] = time.time()
             except KeyError:
                 pass
 

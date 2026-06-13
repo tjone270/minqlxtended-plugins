@@ -5,6 +5,7 @@ import minqlxtended
 
 class glasshouse(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("vote_started", self.handle_vote_started, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("vote_ended", self.handle_vote_ended, priority=minqlxtended.PRI_LOWEST)
 
@@ -19,7 +20,7 @@ class glasshouse(minqlxtended.Plugin):
 
     def handle_vote_ended(self, votes, vote, args, passed):
         vote = vote.lower().strip()
-        if (not passed) and (vote in self.affected_votes) and (self.last_kickvote_caller.valid):
+        if (not passed) and (vote in self.affected_votes) and (self.last_kickvote_caller) and (self.last_kickvote_caller.valid):
             self.last_kickvote_caller.kick("was kicked for calling an unsuccessful kick/ban vote.")
 
         self.last_kickvote_caller = None

@@ -20,6 +20,7 @@ import minqlxtended
 
 class plugin_manager(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_command("load", self.cmd_load, 5, usage="<plug-in>")
         self.add_command("unload", self.cmd_unload, 5, usage="<plug-in>")
         self.add_command("reload", self.cmd_reload, 5, usage="<plug-in>")

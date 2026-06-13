@@ -3,6 +3,7 @@ import minqlxtended
 
 class stats(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("round_end", self.handle_round_end)
         self.add_hook("new_game", self.handle_new_game)
         

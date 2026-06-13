@@ -27,6 +27,7 @@ from logging.handlers import RotatingFileHandler
 
 class log(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("player_connect", self.handle_player_connect, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("player_disconnect", self.handle_player_disconnect, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("chat", self.handle_chat, priority=minqlxtended.PRI_LOWEST)
@@ -41,7 +42,19 @@ class log(minqlxtended.Plugin):
         self.set_cvar_once("qlx_chatlogs", "10")
         self.set_cvar_once("qlx_chatlogsSize", str(3 * 10**6))  # 3 MB
 
-        self.chatlog = logging.Logger(__name__)
+        # Use a named logger and reset its handlers so reloading this plugin doesn't stack
+        # duplicate file handlers (which leaks open files and can break log rotation). Keep
+        # propagation off so chat lines don't also land in the console / main minqlxtended.log.
+        self.chatlog = logging.getLogger("minqlxtended.chatlog")
+        self.chatlog.setLevel(logging.INFO)
+        self.chatlog.propagate = False
+        for handler in self.chatlog.handlers[:]:
+            self.chatlog.removeHandler(handler)
+            try:
+                handler.close()
+            except Exception:
+                pass
+
         file_dir = os.path.join(minqlxtended.get_cvar("fs_homepath"), "chatlogs")
         if not os.path.isdir(file_dir):
             os.makedirs(file_dir)

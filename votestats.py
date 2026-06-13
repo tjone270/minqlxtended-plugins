@@ -9,6 +9,7 @@ import minqlxtended
 
 class votestats(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("vote", self.process_vote, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("vote_ended", self.handle_vote_ended, priority=minqlxtended.PRI_LOWEST)
 
@@ -45,10 +46,14 @@ class votestats(minqlxtended.Plugin):
         else:
             word = "^1no"
 
-        for p in self.players():
-            if self.db.get_flag(p, "votestats:votes_enabled", default=True):
+        # Batch-read the votes_enabled flag in a single round-trip instead of one per player.
+        players = self.players()
+        keys = [f"minqlx:players:{p.steam_id}:flags:votestats:votes_enabled" for p in players]
+        values = self.db.mget(keys) if keys else []
+        for p, v in zip(players, values):
+            if v is None or bool(int(v)):
                 p.tell("{}^7 voted {}^7.".format(player.name, word))
-                
+
         self.has_voted.append(player)
 
     def handle_vote_ended(self, votes, vote, args, passed):

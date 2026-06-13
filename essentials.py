@@ -231,7 +231,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             player.tell("Invalid ID.")
             return minqlxtended.RET_STOP_ALL
 
@@ -257,7 +257,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             player.tell("Invalid ID.")
             return minqlxtended.RET_STOP_ALL
 
@@ -292,9 +292,8 @@ class essentials(minqlxtended.Plugin):
         # Play to all other players who haven't disabled sound
         players = self.players()
         players.remove(player)
-        for p in players:
-            if self.db.get_flag(p, "essentials:sounds_enabled", default=True):
-                self.play_sound(msg[1], p)
+        for p in self._sounds_enabled_players(players):
+            self.play_sound(msg[1], p)
 
         return minqlxtended.RET_STOP_ALL
 
@@ -315,9 +314,8 @@ class essentials(minqlxtended.Plugin):
         # Play to all other players who haven't disabled sounds.
         players = self.players()
         players.remove(player)
-        for p in players:
-            if self.db.get_flag(p, "essentials:sounds_enabled", default=True):
-                self.play_music(msg[1], p)
+        for p in self._sounds_enabled_players(players):
+            self.play_music(msg[1], p)
 
         return minqlxtended.RET_STOP_ALL
 
@@ -347,7 +345,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -366,7 +364,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -438,7 +436,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -454,7 +452,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -470,7 +468,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -486,7 +484,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -502,7 +500,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -518,7 +516,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -534,7 +532,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -550,7 +548,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -569,7 +567,7 @@ class essentials(minqlxtended.Plugin):
             target_player = self.player(i)
             if not (0 <= i < 64) or not target_player:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("Invalid ID.")
             return
 
@@ -746,6 +744,7 @@ class essentials(minqlxtended.Plugin):
             return
         elif n > 64:  # imaginary maximum - insane to go higher.
             channel.reply("The teamsize must be less than 64.")
+            return
 
         self.game.teamsize = n
         if n:
@@ -875,11 +874,26 @@ class essentials(minqlxtended.Plugin):
     def plural(self, sample):
         return "s" if int(sample) != 1 else ""
 
+    def _sounds_enabled_players(self, players):
+        """Return the subset of players who haven't disabled custom sounds,
+        reading every flag in a single round-trip instead of one per player."""
+        keys = [f"minqlx:players:{p.steam_id}:flags:essentials:sounds_enabled" for p in players]
+        values = self.db.mget(keys) if keys else []
+        return [p for p, v in zip(players, values) if (v is None or bool(int(v)))]
+
     def send_player_list(self, target_player, ease_sight=False):
         players = self.players()
         target_player.tell("^6 Steam ID            ID    Ping  Perm  Player")
+        # Batch-read permissions in a single round-trip instead of one per player.
+        owner = minqlxtended.owner()
+        perm_keys = [f"minqlx:players:{p.steam_id}:permission" for p in players]
+        perm_values = self.db.mget(perm_keys) if perm_keys else []
+        permissions = {
+            p.steam_id: (5 if p.steam_id == owner else (int(v) if v else 0))
+            for p, v in zip(players, perm_values)
+        }
         for player in players:
-            type_chars = [f"^{str(self.db.get_permission(player)) * 2}^7", " "]
+            type_chars = [f"^{str(permissions[player.steam_id]) * 2}^7", " "]
             if player.steam_id == minqlxtended.owner():
                 type_chars[1] = "*"  # owner
             elif player.is_bot:

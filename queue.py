@@ -10,9 +10,13 @@
 # along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
 # Updated 31/07/2024 to make compatible with minqlxtended.
+# Reworked to be single-threaded/race-free: minqlxtended runs everything on the main
+# game thread, and this plugin has no blocking I/O, so the previous @minqlxtended.thread
+# usage only introduced data races on the shared _queue/_afk/_tags structures. All shared
+# state is now mutated exclusively on the main/frame thread; the debounced re-push uses
+# @minqlxtended.delay instead of time.sleep in a worker thread.
 
 import minqlxtended
-import time
 
 TEAM_BASED_GAMETYPES = ("ca", "ctf", "dom", "ft", "tdm", "ad", "1f", "har")
 NONTEAM_BASED_GAMETYPES = ("ffa", "race", "rr", "duel")
@@ -23,6 +27,7 @@ _tag_key = "minqlx:players:{}:clantag"
 
 class queue(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("new_game", self.handle_new_game)
         self.add_hook("game_end", self.handle_game_end)
         self.add_hook("player_loaded", self.handle_player_loaded)
@@ -41,20 +46,20 @@ class queue(minqlxtended.Plugin):
         self._queue = []
         self._afk = []
         self._tags = {}
-        self.initialize()
+
+        # These flags must exist before initialize() or any scheduled push runs.
         self.is_red_locked = False
         self.is_blue_locked = False
-        self.is_push_pending = False
-        self.is_endscreen = False ######## TODO: replace for something better, because
-                                  ######## loading during the endgame screen might cause bugs
+        self.is_endscreen = False  # set True between game_end and the next new_game
+        self._push_scheduled = False  # main-thread debounce for pushFromQueue
+
         self.set_cvar_once("qlx_queueSetAfkPermission", "2")
         self.set_cvar_once("qlx_queueAFKTag", "^3AFK")
 
-        self.test_logger = minqlxtended.get_logger()
-
         self._cache_variables()
+        self.initialize()
 
-    
+
     def _cache_variables(self):
         """ we do this to prevent lots of unnecessary engine calls """
         self._qlx_queueSetAfkPermission = self.get_cvar("qlx_queueSetAfkPermission", int)
@@ -65,12 +70,11 @@ class queue(minqlxtended.Plugin):
         for p in self.players():
             self.updTag(p)
         self.unlock()
-   
+
     def center_print(self, *args, **kwargs):
         pass
-        
+
     ## Basic List Handling (Queue and AFK)
-    @minqlxtended.thread
     def addToQueue(self, player, pos=-1):
         """Safely adds players to the queue"""
         if player not in self._queue:
@@ -86,7 +90,7 @@ class queue(minqlxtended.Plugin):
             player.center_print("You are in the queue to play")
         self.updTag(player)
         self.pushFromQueue()
-    
+
     def remFromQueue(self, player, update=True):
         """Safely removes player from the queue"""
         if player in self._queue:
@@ -95,96 +99,138 @@ class queue(minqlxtended.Plugin):
             self.updTag(p)
         if update:
             self.updTag(player)
-    
-    @minqlxtended.thread
-    def pushFromQueue(self, delay=0):
-        """Check if there is the place and players in queue, and put them in the game"""
-        @minqlxtended.next_frame
-        def pushToTeam(amount, team):
-            """Safely put certain amout of players to the selected team"""
-            if not self.is_endscreen:
-                for count, player in enumerate(self._queue, start=1):
-                    if player in self.teams()['spectator'] and player.connection_state == 'active':
-                        self._queue.pop(0).put(team)
-                    elif player.connection_state not in ['connected', 'primed']:
-                        self.remFromQueue(player)
-                    if count == amount:
-                        self.pushFromQueue(0.5)
-                        return
-                        
-        @minqlxtended.next_frame
-        def pushToBoth():
-            ### TODO ###
-            if len(self._queue) > 1 and not self.is_endscreen:
-                spectators = self.teams()['spectator']
-                if self._queue[0] in spectators and self._queue[0].connection_state == 'active':
-                    if self._queue[1] in spectators and self._queue[1].connection_state == 'active':
-                        self._queue.pop(0).put("red")
-                        self._queue.pop(0).put("blue")
-                    elif self._queue[1].connection_state not in ['connected', 'primed']:
-                        self.remFromQueue(self._queue[1])
-                elif self._queue[0].connection_state not in ['connected', 'primed']:
-                    self.remFromQueue(self._queue[0])
-                self.pushFromQueue(0.5)
-            
-        @minqlxtended.next_frame
-        def checkForPlace():
-            maxplayers = self.get_maxplayers()
-            teams = self.teams()
-            red_amount = len(teams["red"])
-            blue_amount = len(teams["blue"])
-            free_amount = len(teams["free"])
-                        
-            if self.game.type_short in TEAM_BASED_GAMETYPES:
-                diff = red_amount - blue_amount
-                if diff > 0 and not self.is_blue_locked:
-                    pushToTeam(diff, "blue")
-                elif diff < 0 and not self.is_red_locked:
-                    pushToTeam(-diff, "red")
-                elif red_amount + blue_amount < maxplayers:
-                    if len(self._queue) > 1 and not self.is_blue_locked and not self.is_red_locked:
-                        pushToBoth() ################ add elo here for those, who want
-                    elif self.game.state == 'warmup': # for the case if there is 1 player in queue
-                        if not self.is_red_locked and red_amount < int(self.game.teamsize):
-                            pushToTeam(1, "red")
-                        elif not self.is_blue_locked and blue_amount < int(self.game.teamsize):
-                            pushToTeam(1, "blue")
-                    
-            elif self.game.type_short in NONTEAM_BASED_GAMETYPES:
-                if free_amount < maxplayers:
-                    pushToTeam(maxplayers - free_amount, "free")
-        
-        
-        if self.is_push_pending:
-            return
-        self.is_push_pending = True
-        time.sleep(delay)
-        self.is_push_pending = False
 
-        if len(self._queue) == 0:
+    def pushFromQueue(self, delay=0):
+        """Debounced request to fill/even teams from the queue.
+
+        Always runs on the main/frame thread. The single boolean guard is race-free because
+        it is only ever read/written on that one thread; a push requested while one is pending
+        is coalesced, and the flag is cleared at the start of the scheduled run so genuine
+        follow-up pushes re-arm a fresh window (preserving the original 0.5s cadence).
+        """
+        if self._push_scheduled:
+            return
+        self._push_scheduled = True
+
+        if delay and delay > 0:
+            @minqlxtended.delay(delay)
+            def run():
+                self._push_scheduled = False
+                self._do_push()
+            run()
+        else:
+            @minqlxtended.next_frame
+            def run():
+                self._push_scheduled = False
+                self._do_push()
+            run()
+
+    def _do_push(self):
+        if not self._queue:
             return
         if self.game.state != 'in_progress' and self.game.state != 'warmup':
             return
         if self.is_endscreen:
             return
-            
-        checkForPlace()
-    
-    @minqlxtended.thread
+        self._check_for_place()
+
+    def _check_for_place(self):
+        """Check if there is space and players in the queue, and put them in the game."""
+        maxplayers = self.get_maxplayers()
+        teams = self.teams()
+        red_amount = len(teams["red"])
+        blue_amount = len(teams["blue"])
+        free_amount = len(teams["free"])
+        pushed = False
+
+        if self.game.type_short in TEAM_BASED_GAMETYPES:
+            diff = red_amount - blue_amount
+            if diff > 0 and not self.is_blue_locked:
+                pushed = self._push_to_team(diff, "blue")
+            elif diff < 0 and not self.is_red_locked:
+                pushed = self._push_to_team(-diff, "red")
+            elif red_amount + blue_amount < maxplayers:
+                if len(self._queue) > 1 and not self.is_blue_locked and not self.is_red_locked:
+                    pushed = self._push_to_both()
+                elif self.game.state == 'warmup':  # for the case if there is 1 player in queue
+                    if not self.is_red_locked and red_amount < int(self.game.teamsize):
+                        pushed = self._push_to_team(1, "red")
+                    elif not self.is_blue_locked and blue_amount < int(self.game.teamsize):
+                        pushed = self._push_to_team(1, "blue")
+        elif self.game.type_short in NONTEAM_BASED_GAMETYPES:
+            if free_amount < maxplayers:
+                pushed = self._push_to_team(maxplayers - free_amount, "free")
+
+        # Only re-arm if we actually placed someone, so we keep draining the queue across
+        # 0.5s cycles without spinning forever when nobody can currently be placed.
+        if pushed:
+            self.pushFromQueue(0.5)
+
+    def _push_to_team(self, amount, team):
+        """Move up to `amount` front-of-queue, ACTIVE spectators onto `team`.
+
+        Disconnected/zombie entries are dropped; still-loading (connected/primed) entries are
+        kept in place. The inspected element is popped (never a blind pop(0)), and the list is
+        never iterated while being mutated. Returns True if at least one player was placed.
+        """
+        if self.is_endscreen:
+            return False
+        placed = 0
+        changed = False
+        spectators = self.teams()['spectator']
+        i = 0
+        while placed < amount and i < len(self._queue):
+            qplayer = self._queue[i]
+            if qplayer in spectators and qplayer.connection_state == 'active':
+                self._queue.pop(i)
+                qplayer.put(team)
+                placed += 1
+                changed = True
+                spectators = self.teams()['spectator']  # refresh the now-stale snapshot
+            elif qplayer.connection_state not in ('connected', 'primed'):
+                self._queue.pop(i)  # gone for good; drop and re-inspect this index
+                changed = True
+            else:
+                i += 1  # connected/primed: still loading, keep and move past it
+        if changed:
+            for p in self._queue:
+                self.updTag(p)
+        return placed > 0
+
+    def _push_to_both(self):
+        """Place the two front-of-queue players onto red and blue at once."""
+        if self.is_endscreen or len(self._queue) <= 1:
+            return False
+        spectators = self.teams()['spectator']
+        first = self._queue[0]
+        if first in spectators and first.connection_state == 'active':
+            second = self._queue[1]
+            if second in spectators and second.connection_state == 'active':
+                self._queue.pop(0).put("red")
+                self._queue.pop(0).put("blue")
+                for p in self._queue:
+                    self.updTag(p)
+                return True
+            elif second.connection_state not in ('connected', 'primed'):
+                self.remFromQueue(second)
+        elif first.connection_state not in ('connected', 'primed'):
+            self.remFromQueue(first)
+        return False
+
     def remAFK(self, player, update=True):
         """Safely removes players from afk list"""
         if player in self._afk:
             self._afk.remove(player)
             if update:
                 self.updTag(player)
-    
+
     def posInQueue(self, player):
         """Returns position of the player in queue"""
         try:
             return self._queue.index(player)
         except ValueError:
             return -1
-    
+
     ## AFK Handling
     def setAFK(self, player):
         """Returns True if player's state could be set to AFK"""
@@ -193,24 +239,22 @@ class queue(minqlxtended.Plugin):
             self.remFromQueue(player)
             return True
         return False
-    
-    @minqlxtended.thread    
+
     def remTag(self, player):
         if player.steam_id in self._tags:
             del self._tags[player.steam_id]
-    
-    #@minqlxtended.thread
+
     def updTag(self, player):
         """Update the tags dictionary and start the set_configstring event for tag to apply"""
         @minqlxtended.next_frame
         def upd():
             if player in self.players():
                 player.clan = player.clan
-        
+
         if player in self.players():
             addition = ""
             position = self.posInQueue(player)
-            
+
             if position > -1:
                 addition = f'({position + 1})'
             elif player in self._afk:
@@ -219,11 +263,11 @@ class queue(minqlxtended.Plugin):
                 addition = ""
             elif player in self.teams()['spectator']:
                 addition = '(s)'
-                
+
             self._tags[player.steam_id] = addition
-            
+
             upd()
-               
+
     def get_maxplayers(self):
         maxplayers = int(self.game.teamsize)
         if self.game.type_short in TEAM_BASED_GAMETYPES:
@@ -231,17 +275,17 @@ class queue(minqlxtended.Plugin):
         if maxplayers == 0:
             maxplayers = self._sv_maxclients
         return maxplayers
-    
+
     ## Plugin Handles and Commands
     def handle_player_disconnect(self, player, reason):
         self.remAFK(player, False)
         self.remFromQueue(player, False)
         self.remTag(player)
         self.pushFromQueue(0.5)
-    
+
     def handle_player_loaded(self, player):
         self.updTag(player)
-    
+
     def handle_team_switch(self, player, old_team, new_team):
         if new_team != "spectator":
             self.remFromQueue(player)
@@ -249,74 +293,71 @@ class queue(minqlxtended.Plugin):
         else:
             self.updTag(player)
             self.pushFromQueue(0.5)
-        
+
     def handle_team_switch_attempt(self, player, old_team, new_team):
         if self.game.type_short not in TEAM_BASED_GAMETYPES + NONTEAM_BASED_GAMETYPES:
             return
-            
+
         if new_team != "spectator" and old_team == "spectator":
-            teams = self.teams();
+            teams = self.teams()
             maxplayers = self.get_maxplayers()
             if len(teams["red"]) + len(teams["blue"]) == maxplayers or len(teams["free"]) == maxplayers or self.game.state == 'in_progress' or len(self._queue) > 0 or self.is_red_locked or self.is_blue_locked:
                 self.remAFK(player)
                 self.addToQueue(player)
                 return minqlxtended.RET_STOP_ALL
-            
+
     def handle_client_command(self, player, command):
         if (command.lower().strip() == "team s") and (player.team == "spectator"):
-            @minqlxtended.thread
-            def handler():
-                self.remFromQueue(player)
-                if player not in self._queue:
-                    self.center_print(player, "You are set to spectate only")
-            handler()
-    
+            self.remFromQueue(player)
+            if player not in self._queue:
+                self.center_print(player, "You are set to spectate only")
+
     def handle_vote_ended(self, votes, vote, args, passed):
         if vote.lower().strip() == "teamsize":
             self.pushFromQueue(4)
-                
+
     def handle_configstring(self, index, value):
         if not value:
             return
-        
+
         elif CS_PLAYERS <= index < CS_PLAYERS + 64:
             try:
                 player = self.player(index - CS_PLAYERS)
             except minqlxtended.NonexistentPlayerError:
                 return
-            
+
             if player.steam_id in self._tags:
                 tag = self._tags[player.steam_id]
-                
+
                 # only run if player is allowed to use clan tags
-                if not self.db.get_flag(player, NO_CLANTAG_FLAG_NAME): 
+                if not self.db.get_flag(player, NO_CLANTAG_FLAG_NAME):
                     tag_key = _tag_key.format(player.steam_id)
                     if tag_key in self.db:
                         if len(tag) > 0:
                             tag += ' '
                         tag += self.db[tag_key]
-                    
+
                 cs = minqlxtended.parse_variables(value)
                 cs["xcn"] = tag
                 cs["cn"] = tag
                 new_cs = "".join([f"\\{key}\\{cs[key]}" for key in cs])
                 return new_cs
-    
+
     def handle_new_game(self):
         self.is_endscreen = False
         self.is_red_locked = False
         self.is_blue_locked = False
-        
+
         if self.game.type_short not in TEAM_BASED_GAMETYPES + NONTEAM_BASED_GAMETYPES:
             self._queue = []
             for p in self.players():
                 self.updTag(p)
         else:
             self.pushFromQueue()
-        
+
     def handle_game_end(self, data):
         self.is_endscreen = True
-    
+
     def cmd_lq(self, player, msg, channel):
         """ Display the current queue. """
         msg = "^7No one in queue."
@@ -327,26 +368,36 @@ class queue(minqlxtended.Plugin):
                 msg += f'{p.name}^7({count}) '
                 count += 1
         channel.reply(msg)
-        
+
         if self._afk:
             msg = "^3Away^7 >> "
             for p in self._afk:
                 msg += p.name + " "
-            
+
             channel.reply(msg)
-    
+
     def cmd_afk(self, player, msg, channel):
         """ Marks the calling player as AFK (or the player specified.) """
         if len(msg) > 1:
-            if self.db.has_permission(player, self._qlx_queueSetAfkPermission):
-                guy = self.find_player(msg[1])[0]
-                if self.setAFK(guy):
-                    player.tell(f"Status for {guy.name}^7 has been set to ^3AFK^7.")
-                    return minqlxtended.RET_STOP_ALL
-                else:
-                    player.tell(f"Couldn't set status for {guy.name}^7 to ^3AFK^7.")
-                    return minqlxtended.RET_STOP_ALL
-                
+            if not self.db.has_permission(player, self._qlx_queueSetAfkPermission):
+                player.tell("^7You do not have permission to set other players AFK.")
+                return minqlxtended.RET_STOP_ALL
+
+            matches = self.find_player(msg[1])
+            if not matches:
+                player.tell(f"^7No players matching ^6{msg[1]}^7 were found.")
+                return minqlxtended.RET_STOP_ALL
+            if len(matches) > 1:
+                player.tell(f"^7More than one player matches ^6{msg[1]}^7. Please be more specific.")
+                return minqlxtended.RET_STOP_ALL
+
+            guy = matches[0]
+            if self.setAFK(guy):
+                player.tell(f"Status for {guy.name}^7 has been set to ^3AFK^7.")
+            else:
+                player.tell(f"Couldn't set status for {guy.name}^7 to ^3AFK^7.")
+            return minqlxtended.RET_STOP_ALL
+
         if self.setAFK(player):
             player.tell("^7Your status has been set to ^3AFK^7.")
         else:
@@ -357,7 +408,7 @@ class queue(minqlxtended.Plugin):
         self.remAFK(player)
         self.updTag(player)
         player.tell("Your status has been set to ^2AVAILABLE^7.")
-    
+
     def cmd_teamsize(self, playing, msg, channel):
         self.pushFromQueue(0.5)
 
@@ -368,10 +419,7 @@ class queue(minqlxtended.Plugin):
             self.is_blue_locked = True
         elif text.find('broadcast: print "The RED team is now unlocked') != -1:
             self.is_red_locked = False
-            self.pushFromQueue(0.5) ################ if cause errors maybe call that in next_frame
+            self.pushFromQueue(0.5)
         elif text.find('broadcast: print "The BLUE team is now unlocked') != -1:
             self.is_blue_locked = False
-            self.pushFromQueue(0.5) 
-            
-            
-# type: ignore
+            self.pushFromQueue(0.5)
