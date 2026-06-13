@@ -174,8 +174,11 @@ class fun(minqlxtended.Plugin):
             return
 
         self.last_sound = time.time()
-        for p in self.players():
-            if self.db.get_flag(p, "essentials:sounds_enabled", default=True):
+        players = self.players()
+        keys = [f"minqlx:players:{p.steam_id}:flags:essentials:sounds_enabled" for p in players]
+        values = self.db.mget(keys) if keys else []
+        for p, v in zip(players, values):
+            if v is None or bool(int(v)):
                 super().play_sound(path, p)
 
     def cmd_cookies(self, player, msg, channel):

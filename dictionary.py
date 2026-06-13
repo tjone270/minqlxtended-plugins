@@ -13,6 +13,7 @@ from textwrap import shorten
 
 class dictionary(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_command("define", self.cmd_define_term, usage="<term>")
         self.plugin_version = "1.6"
         
@@ -23,7 +24,7 @@ class dictionary(minqlxtended.Plugin):
             return minqlxtended.RET_USAGE
 
         try:
-            r = requests.get(DICT_API_URL.format(urllib.parse.quote(" ".join(msg[1:]))))
+            r = requests.get(DICT_API_URL.format(urllib.parse.quote(" ".join(msg[1:]))), timeout=5)
             r.raise_for_status()
             data = r.json()["list"][0]
             channel.reply(f"^6Definition^7: {shorten(self.strip_brackets(data['definition']), width=150, placeholder='...')}^7")

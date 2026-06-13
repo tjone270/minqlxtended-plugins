@@ -12,6 +12,7 @@ ITEM_PLASMAGUN = 16
 
 class infectedmm(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("new_game", self.handle_new_game)
 
         self.set_cvar_once("g_rrInfectedMastermindHealthBonus", "50")
@@ -113,7 +114,7 @@ class infectedmm(minqlxtended.Plugin):
         if not self.is_infected_mastermind_gametype:
             return
 
-        if (victim == self.infected_mastermind_bot) and (killer != self.infected_mastermind_bot):
+        if (killer) and (victim == self.infected_mastermind_bot) and (killer != self.infected_mastermind_bot):
             self.play_sound("sound/world/screech1.wav", player=killer)  # play sound to killer
             killer.center_print(f"You slayed the ^1{INFECTED_MASTERMIND_BOT_NAME}^7!")
             self.center_print(f"{killer.name}^7 looted the Mastermind!")

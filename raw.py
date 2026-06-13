@@ -23,6 +23,7 @@ import minqlxtended
 
 class raw(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_command(("exec", "pyexec"), self.cmd_exec, 5, client_cmd_pass=False, usage="<python_code>")
         self.add_command(("eval", "pyeval"), self.cmd_eval, 5, client_cmd_pass=False, usage="<python_code>")
         self.add_command(("db", "database"), self.cmd_db, 5, usage="<key> [value]")

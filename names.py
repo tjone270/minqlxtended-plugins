@@ -24,6 +24,7 @@ _name_key = "minqlx:players:{}:colored_name"
 
 class names(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("player_connect", self.handle_player_connect)
         self.add_hook("player_loaded", self.handle_player_loaded)
         self.add_hook("player_disconnect", self.handle_player_disconnect)
@@ -65,9 +66,10 @@ class names(minqlxtended.Plugin):
 
         if "name" in changed:
             name_key = _name_key.format(player.steam_id)
-            if name_key not in self.db:
-                self.steam_names[player.steam_id] = self.clean_text(changed["name"])
-            elif self.steam_names[player.steam_id] == self.clean_text(changed["name"]):
+            current_clean = self.clean_text(changed["name"])
+            if name_key not in self.db or player.steam_id not in self.steam_names:
+                self.steam_names[player.steam_id] = current_clean
+            elif self.steam_names[player.steam_id] == current_clean:
                 changed["name"] = self.db[name_key]
                 return changed
             else:

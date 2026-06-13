@@ -10,6 +10,7 @@ import minqlxtended
 STD_SVFPS = 40
 class sv_fps(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_command(("sv_fps", "svfps"), self.cmd_svfps, 5, usage="<integer>")
         self.add_command("tomtec_versions", self.cmd_showversion)
         self.set_cvar_once("qlx_svfps", str(STD_SVFPS))

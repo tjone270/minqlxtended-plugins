@@ -7,6 +7,7 @@ import minqlxtended
 
 class votecommands(minqlxtended.Plugin):
     def __init__(self):
+        super().__init__()
         self.add_hook("client_command", self.handle_client_command)
 
         self.add_command(("pass", "veto"), self.cmd_force_vote, 2, priority=minqlxtended.PRI_HIGHEST)
@@ -15,7 +16,10 @@ class votecommands(minqlxtended.Plugin):
         self._qlx_commandPrefix = self.get_cvar("qlx_commandPrefix")
 
     def handle_client_command(self, player, command):
-        command = command.lower().split()[0]
+        parts = command.lower().split()
+        if not parts:
+            return
+        command = parts[0]
         if command in ["pass", "veto", "yes", "no"]:
             self.do_vote(player, (True if command in ["pass", "yes"] else False))
             return minqlxtended.RET_STOP_ALL
@@ -37,7 +41,7 @@ class votecommands(minqlxtended.Plugin):
             return minqlxtended.RET_STOP_ALL
 
         if not self.db.has_permission(player.steam_id, 3):
-            player.tell(f"You don't have permission to ^6{action}^7 a vote.")
+            player.tell(f"You don't have permission to ^6{'pass' if action else 'veto'}^7 a vote.")
             return minqlxtended.RET_STOP_ALL
 
         if action:
