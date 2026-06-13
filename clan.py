@@ -19,8 +19,8 @@
 import minqlxtended
 import re
 
-
 CS_PLAYERS = 529
+NO_CLANTAG_FLAG_NAME = "no_clantag"
 
 _re_remove_excessive_colors = re.compile(r"(?:\^.)+(\^.)")
 _tag_key = "minqlx:players:{}:clantag"
@@ -28,7 +28,8 @@ _tag_key = "minqlx:players:{}:clantag"
 class clan(minqlxtended.Plugin):
     def __init__(self):
         self.add_hook("set_configstring", self.handle_set_configstring)
-        self.add_command(("clan", "setclan"), self.cmd_clan, usage="<clan_tag>", client_cmd_perm=0)
+        self.add_command("clan", self.cmd_clan, usage="<clan_tag>", client_cmd_perm=0)
+        self.add_command("setnoclan", self.cmd_setnoclan, 4, usage="<id>", client_cmd_perm=4)
 
     def handle_set_configstring(self, index, value):
         # The engine strips cn and xcn, so we can safely append it
@@ -43,6 +44,10 @@ class clan(minqlxtended.Plugin):
                 # has yet to be properly initialized. We can safely
                 # skip it because the clan will be set later.
                 return
+            
+            if self.db.get_flag(player, NO_CLANTAG_FLAG_NAME):
+                return # Player is not allowed to use clan tags.
+
             tag_key = _tag_key.format(player.steam_id)
             if tag_key in self.db:
                 tag = self.db[tag_key]
@@ -50,6 +55,10 @@ class clan(minqlxtended.Plugin):
 
     def cmd_clan(self, player, msg, channel):
         """ Sets the player's clan tag to the string specified, or clears it if nothing specified. """
+        if self.db.get_flag(player, NO_CLANTAG_FLAG_NAME):
+            player.tell("You cannot modify your clan tag.")
+            return minqlxtended.RET_STOP_EVENT
+
         index = CS_PLAYERS + player.id
         tag_key = _tag_key.format(player.steam_id)
         
@@ -86,7 +95,38 @@ class clan(minqlxtended.Plugin):
         minqlxtended.set_configstring(index, new_cs)
         self.msg(f"{player}^7 changed clan tag to {tag}")
         return minqlxtended.RET_STOP_EVENT
+        
+    def cmd_setnoclan(self, player, msg, channel):
+        """ Prevents the specified player from using clan tags. """
+        if len(msg) < 2:
+            return minqlxtended.RET_USAGE
 
+        try:
+            ident = int(msg[1])
+            target_player = None
+            if 0 <= ident < 64:
+                target_player = self.player(ident)
+                ident = target_player.steam_id
+        except ValueError:
+            channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
+            return
+        except minqlxtended.NonexistentPlayerError:
+            channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
+            return
+
+        if target_player:
+            name = target_player.name
+        else:
+            name = f"^6{ident}"
+
+        flag = self.db.get_flag(ident, NO_CLANTAG_FLAG_NAME)
+        self.db.set_flag(ident, NO_CLANTAG_FLAG_NAME, not flag)
+
+        if not flag:
+            channel.reply(f"{name}^7 is no longer allowed to use clan tags.")
+        else:
+            channel.reply(f"{name}^7 is allowed to use clan tags.")
+        
     def clean_tag(self, tag):
         """Removes excessive colors and only keeps the one that matters."""
         def sub_func(match):

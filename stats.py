@@ -18,7 +18,7 @@ class stats(minqlxtended.Plugin):
 
             best_player_name = "(disconnected)"
             colour           = "^3"
-            best_damage      = "^3(unknown)^7"
+            best_damage      = "(unknown)"
             try:
                 best_player, best_damage = self.getPlayerWithHighestDamage(round_number)
                 if best_player.valid:
@@ -40,7 +40,8 @@ class stats(minqlxtended.Plugin):
         return seconds_delta
 
     def getPlayerWithHighestDamage(self, round_number):
-        players = (self.teams()["red"] + self.teams()["blue"])
+        teams = self.teams()
+        players = (teams["red"] + teams["blue"])
         best_player = {}
         best_damage = 0
         for player in players:

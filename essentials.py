@@ -123,7 +123,8 @@ class essentials(minqlxtended.Plugin):
         self._cache_variables()
 
     def handle_player_connect(self, player):
-        self.update_player(player)
+        if self.update_player(player):
+            self.msg(f"^6{player.clean_name}^7 connected for the first time to this server, please make them feel welcome!")
 
     def handle_player_disconnect(self, player, reason):
         self.recent_dcs.appendleft((player, time.time()))
@@ -784,6 +785,8 @@ class essentials(minqlxtended.Plugin):
         and adds entries to the player list and IP entries.
 
         """
+        is_new_player = False
+
         base_key = f"minqlx:players:{str(player.steam_id)}"
         db = self.db.pipeline()
 
@@ -796,6 +799,7 @@ class essentials(minqlxtended.Plugin):
 
         # Make or update player entry.
         if base_key not in self.db:
+            is_new_player = True
             db.lpush(base_key, player.name)
             db.sadd("minqlx:players", player.steam_id)
             db.set(f"{base_key}:first_seen", datetime.datetime.now().strftime(DATETIME_FORMAT))
@@ -810,6 +814,8 @@ class essentials(minqlxtended.Plugin):
             db.set(f"{base_key}:current_name", player.name)
 
         db.execute()
+
+        return is_new_player
 
     def update_seen_player(self, player):
         key = f"minqlx:players:{str(player.steam_id)}:last_seen"

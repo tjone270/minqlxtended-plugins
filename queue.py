@@ -17,6 +17,7 @@ import time
 TEAM_BASED_GAMETYPES = ("ca", "ctf", "dom", "ft", "tdm", "ad", "1f", "har")
 NONTEAM_BASED_GAMETYPES = ("ffa", "race", "rr", "duel")
 CS_PLAYERS = 529
+NO_CLANTAG_FLAG_NAME = "no_clantag"
 
 _tag_key = "minqlx:players:{}:clantag"
 
@@ -286,12 +287,14 @@ class queue(minqlxtended.Plugin):
             
             if player.steam_id in self._tags:
                 tag = self._tags[player.steam_id]
-                    
-                tag_key = _tag_key.format(player.steam_id)
-                if tag_key in self.db:
-                    if len(tag) > 0:
-                        tag += ' '
-                    tag += self.db[tag_key]
+                
+                # only run if player is allowed to use clan tags
+                if not self.db.get_flag(player, NO_CLANTAG_FLAG_NAME): 
+                    tag_key = _tag_key.format(player.steam_id)
+                    if tag_key in self.db:
+                        if len(tag) > 0:
+                            tag += ' '
+                        tag += self.db[tag_key]
                     
                 cs = minqlxtended.parse_variables(value)
                 cs["xcn"] = tag

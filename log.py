@@ -34,6 +34,9 @@ class log(minqlxtended.Plugin):
         self.add_hook("vote_started", self.handle_vote_started, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("vote_ended", self.handle_vote_ended, priority=minqlxtended.PRI_LOWEST)
         self.add_hook("map", self.handle_map, priority=minqlxtended.PRI_LOWEST)
+        self.add_hook("game_countdown", self.handle_game_countdown, priority=minqlxtended.PRI_LOWEST)
+        self.add_hook("game_start", self.handle_game_start, priority=minqlxtended.PRI_LOWEST)
+        self.add_hook("game_end", self.handle_game_end, priority=minqlxtended.PRI_LOWEST)
 
         self.set_cvar_once("qlx_chatlogs", "10")
         self.set_cvar_once("qlx_chatlogsSize", str(3 * 10**6))  # 3 MB
@@ -75,12 +78,31 @@ class log(minqlxtended.Plugin):
         vote = vote.lower().strip()
         args = args.lower().strip().replace('""', "")
         if caller:
-            self.chatlog.info(self.clean_text(f"[VOTE_STARTED] <{caller}:{caller.steam_id}> {vote} {args if args else ''}"))
+            self.chatlog.info(self.clean_text(f"[VOTE_EVENT] Vote was called: <{caller}:{caller.steam_id}> {vote} {args if args else ''}"))
         else:
-            self.chatlog.info(self.clean_text(f"[VOTE_STARTED] <CustomVote:{minqlxtended.owner()}> {vote} {args}"))
+            self.chatlog.info(self.clean_text(f"[VOTE_EVENT] Vote was called: <CustomVote:{minqlxtended.owner()}> {vote} {args}"))
 
     def handle_vote_ended(self, votes, vote, args, passed):
-        self.chatlog.info(self.clean_text(f"[VOTE_ENDED] {votes[0]} voted yes, {votes[1]} voted no. Vote {'passed' if passed else 'failed'}."))
+        self.chatlog.info(self.clean_text(f"[VOTE_EVENT] Vote has ended: {votes[0]} voted yes, {votes[1]} voted no. Vote {'passed' if passed else 'failed'}."))
 
     def handle_map(self, mapname, factory):
         self.chatlog.info(self.clean_text(f"[MAP] {mapname} ({factory})"))
+
+    def handle_game_countdown(self):
+        self.chatlog.info(self.clean_text(f"[MATCH_EVENT] Match countdown started, the game will begin in {self.get_cvar('g_warmup', int)} seconds"))
+
+    def handle_game_start(self, data):
+        teams = self.teams()
+        if self.is_team_based_game():
+            self.chatlog.info(self.clean_text(f"[MATCH_EVENT] Match has begun (Red: {len(teams['red'])}, Blue: {len(teams['blue'])})"))
+        else:
+            self.chatlog.info(self.clean_text(f"[MATCH_EVENT] Match has begun with {len(teams['free'])} player{'s' if len(teams['free']) != 1 else ''}"))
+
+    def handle_game_end(self, data):
+        if data["ABORTED"]:
+            self.chatlog.info(self.clean_text("[MATCH_EVENT] Match was aborted."))
+        else:
+            self.chatlog.info(self.clean_text(f"[MATCH_EVENT] {data['EXIT_MSG']}"))
+
+    def is_team_based_game(self) -> bool:
+        return self.get_cvar("g_gametype", int) > 2
