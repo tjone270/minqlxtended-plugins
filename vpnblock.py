@@ -20,6 +20,7 @@ class vpnblock(minqlxtended.Plugin):
         self.set_cvar_once("qlx_blockVpnConnections", "1")
 
         self._vpn_networks = []
+        self._announced_blocked_players = set()
         self._update_cache()
 
     def handle_map_load(self, *args, **kwargs):
@@ -33,7 +34,9 @@ class vpnblock(minqlxtended.Plugin):
             player_address = ipaddress.ip_address(player.ip)
             for vpn_network in self._vpn_networks:
                 if player_address in vpn_network:
-                    self.msg(f"vpnblock: Denied connection from {player.name}^7 as they are using a VPN.")
+                    if player.steam_id not in self._announced_blocked_players:
+                        self.msg(f"vpnblock: Denied connection from {player.name}^7 as they are using a VPN.")
+                        self._announced_blocked_players.add(player.steam_id)
                     return f"^7VPN connections aren't allowed on The Pur^4g^7ery. ^2Disable ^2your ^2VPN ^2to ^2join ^2the ^2match.\n^7Your IP exists within a known VPN range (^4{player.ip}^7 is in ^4{vpn_network.compressed}^7), if you feel there is a mistake please visit ^3thepurgery.com/discord^7.\n"
 
     def cmd_vpn(self, player, msg, channel):
