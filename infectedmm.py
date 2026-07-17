@@ -97,7 +97,9 @@ class infectedmm(minqlxtended.Plugin):
         if not self.infected_mastermind_bot:
             self.add_infected_mastermind_bot(spec=False, delay=0)
 
-        self.infected_mastermind_bot.team = INFECTED_TEAM
+        bot = self.infected_mastermind_bot
+        if bot:
+            bot.team = INFECTED_TEAM
 
     @minqlxtended.next_frame
     def handle_game_end(self, data):

@@ -14,13 +14,15 @@ class glasshouse(minqlxtended.Plugin):
 
     def handle_vote_started(self, caller, vote, args):
         vote = vote.lower().strip()
-        if (vote in self.affected_votes) and (not self.db.has_permission(caller, 1)):
-            self.last_kickvote_caller = caller
+        if caller and (vote in self.affected_votes) and (not self.db.has_permission(caller, 1)):
+            self.last_kickvote_caller = caller.steam_id
             self.msg(f"^3If this vote fails, ^7{caller.name}^3 will be kicked instead.")
 
     def handle_vote_ended(self, votes, vote, args, passed):
         vote = vote.lower().strip()
-        if (not passed) and (vote in self.affected_votes) and (self.last_kickvote_caller) and (self.last_kickvote_caller.valid):
-            self.last_kickvote_caller.kick("was kicked for calling an unsuccessful kick/ban vote.")
+        if (not passed) and (vote in self.affected_votes) and (self.last_kickvote_caller is not None):
+            caller = self.player(self.last_kickvote_caller)
+            if caller:
+                caller.kick("was kicked for calling an unsuccessful kick/ban vote.")
 
         self.last_kickvote_caller = None

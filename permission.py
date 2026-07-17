@@ -126,7 +126,7 @@ class permission(minqlxtended.Plugin):
             return
 
         perm = self.db.get_permission(player)
-        if perm is None:
+        if perm == 0 and f"minqlx:players:{player.steam_id}:permission" not in self.db:
             channel.reply("I do not know you.")
         else:
             channel.reply(f"You have permission level ^6{perm}^7.")

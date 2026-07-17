@@ -27,7 +27,10 @@ class tp_fun(minqlxtended.Plugin):
     def cmd_spec_play(self, player, msg, channel):
         """ Spawns all current spectators above the calling player. """
         if len(msg) > 1:
-            z_pos_boost = int(msg[1])
+            try:
+                z_pos_boost = int(msg[1])
+            except ValueError:
+                return minqlxtended.RET_USAGE
         else:
             z_pos_boost = 0
     
@@ -96,18 +99,23 @@ class tp_fun(minqlxtended.Plugin):
         def dropflag(x, y, z):
             minqlxtended.spawn_item(36, int(x), int(y), int(z))
             
-        drawPlaneStart  = str(msg[1]).lower().split("=")
-        drawFrom        = int(msg[2])
-        drawTo          = int(msg[3])
-        drawStep        = int(msg[4])
-        drawZAxis       = int(msg[5])
+        try:
+            drawPlaneStart  = str(msg[1]).lower().split("=")
+            drawFrom        = int(msg[2])
+            drawTo          = int(msg[3])
+            drawStep        = int(msg[4])
+            drawZAxis       = int(msg[5])
+            plane_axis      = drawPlaneStart[0]
+            plane_offset    = int(drawPlaneStart[1])
+        except (ValueError, IndexError):
+            return minqlxtended.RET_USAGE
 
-        if (drawPlaneStart[0] == "x"):
+        if (plane_axis == "x"):
             for step in range(drawFrom, drawTo, drawStep):
-                dropflag(int(drawPlaneStart[1]), int(step), int(drawZAxis))
-        elif (drawPlaneStart[0] == "y"):
+                dropflag(plane_offset, int(step), int(drawZAxis))
+        elif (plane_axis == "y"):
             for step in range(drawFrom, drawTo, drawStep):
-                dropflag(int(step), int(drawPlaneStart[1]), int(drawZAxis))
+                dropflag(int(step), plane_offset, int(drawZAxis))
         else:
             channel.reply("Invalid info entered.")
 

@@ -84,13 +84,14 @@ class ban(minqlxtended.Plugin):
     @minqlxtended.delay(4)
     def handle_player_loaded(self, player):
         # Update first, since player might be gone in those 4 seconds.
-        if player.steam_id in self.pending_warnings:
+        warn = self.pending_warnings.pop(player.steam_id, None)
+        if warn is not None:
             try:
                 player.update()
             except minqlxtended.NonexistentPlayerError:
                 return
 
-            self.warn_player(player, self.pending_warnings[player.steam_id])
+            self.warn_player(player, warn)
 
     def handle_player_disconnect(self, player, reason):
         # Allow people to disconnect without getting a leave if teams are uneven.
@@ -189,7 +190,9 @@ class ban(minqlxtended.Plugin):
         r = LENGTH_REGEX.match(" ".join(msg[2:4]).lower())
         if r:
             number = float(r.group("number"))
-            if number <= 0: return
+            if number <= 0:
+                channel.reply("The duration must be a positive number.")
+                return
             scale = r.group("scale").rstrip("s")
             td = None
 
@@ -222,6 +225,8 @@ class ban(minqlxtended.Plugin):
                 self.kick(ident, f"has been banned until ^6{expires}^7: {reason}")
             except ValueError:
                 channel.reply(f"^6{name}^7 has been banned. Ban expires on ^6{expires}^7.")
+        else:
+            channel.reply("Invalid duration. Use a format like ^65 days^7 or ^62 weeks^7.")
 
     def cmd_unban(self, player, msg, channel):
         """ Unbans the specified player if banned. """
@@ -377,15 +382,19 @@ class ban(minqlxtended.Plugin):
         games_left = self.db.get(f"minqlx:players:{ident}:games_left")
         games_completed = self.db.get(f"minqlx:players:{ident}:games_completed")
 
-        if (games_completed == None) or (games_left == None):
+        if games_completed is None and games_left is None and f"minqlx:players:{ident}" not in self.db:
             channel.reply(f"^6{ident}^7 does not have that data recorded. Have you entered the right ID?")
             return
 
-        completion_percentage = (int(games_completed) / (int(games_left) + int(games_completed))) * 100
+        games_left = int(games_left) if games_left is not None else 0
+        games_completed = int(games_completed) if games_completed is not None else 0
+
+        total = games_left + games_completed
+        completion_percentage = (games_completed / total * 100) if total else 0.0
 
         channel.reply(f"^6{target_player.clean_name if target_player else ident}^7 has completed ^6{completion_percentage:.2f}％^7 of their games.")
-        channel.reply(f"    ^6{games_completed}^7 game{('s' if int(games_left) != 1 else '')} completed.")
-        channel.reply(f"    ^6{games_left}^7 game{('s' if int(games_left) != 1 else '')} left.")
+        channel.reply(f"    ^6{games_completed}^7 game{('s' if games_completed != 1 else '')} completed.")
+        channel.reply(f"    ^6{games_left}^7 game{('s' if games_left != 1 else '')} left.")
 
     # ====================================================================
     #                               HELPERS

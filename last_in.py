@@ -22,7 +22,8 @@ class last_in(minqlxtended.Plugin):
     def handle_team_switch(self, player, old_team, new_team):
         if player.steam_id in self.transitioning_players:
             self.transitioning_players.discard(player.steam_id)
-            self.last_players_in[new_team] = player
+            if new_team in self.last_players_in:
+                self.last_players_in[new_team] = player
 
     def handle_team_switch_attempt(self, player, old_team, new_team):
         if not new_team.lower().startswith("s"):
