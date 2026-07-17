@@ -82,11 +82,14 @@ class tp_vo(minqlxtended.Plugin):
         player.tell("Voice-over names list:")
         counter, line = 0, ""
         for pattern, path in self.vo_table.items():
-            if counter > NAMESPERLINE:
+            if counter >= NAMESPERLINE:
                 player.tell(f"    ^3{line}")
                 counter, line = 0, ""
             line += f"{pattern}  "
             counter += 1
+        # Flush the final partial line; otherwise the last 1-6 names are dropped.
+        if line:
+            player.tell(f"    ^3{line}")
         player.tell(f"Total names: ^4{len(self.vo_table)}\n")
                 
     def handle_map_load(self, *args, **kwargs):

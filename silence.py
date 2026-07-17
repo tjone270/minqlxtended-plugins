@@ -62,8 +62,8 @@ class silence(minqlxtended.Plugin):
         if player.steam_id not in self.silenced:
             return
         
-        cmd = cmd.lower().strip()
-        if (cmd.startswith("say ") or cmd.startswith("say_team ")):
+        lowered = cmd.lower().strip()
+        if (lowered.startswith("say ") or lowered.startswith("say_team ")):
             expires, score, reason = self.silenced[player.steam_id]
             if time.time() < score:
                 if reason:
@@ -87,7 +87,10 @@ class silence(minqlxtended.Plugin):
         if player.steam_id not in self.silenced:
             return
         elif "name" in changed:
-            changed["name"] = player.name.rstrip("^7")
+            # Strip exactly the appended "^7" reset, not any trailing '^'/'7'
+            # characters (rstrip("^7") would corrupt names like "Agent7").
+            name = player.name
+            changed["name"] = name[:-2] if name.endswith("^7") else name
             return changed
 
     def handle_vote_called(self, caller, vote, args):
@@ -139,7 +142,9 @@ class silence(minqlxtended.Plugin):
         r = LENGTH_REGEX.match(" ".join(msg[2:4]).lower())
         if r:
             number = float(r.group("number"))
-            if number <= 0: return
+            if number <= 0:
+                channel.reply("The duration must be a positive number.")
+                return
             scale = r.group("scale").rstrip("s")
             td = None
 
@@ -181,6 +186,8 @@ class silence(minqlxtended.Plugin):
                 except ValueError:
                     pass
             channel.reply(f"^6{name}^7 has been silenced. Silence expires on ^6{expires}^7.")
+        else:
+            channel.reply("Invalid duration. Use a format like ^65 days^7 or ^62 weeks^7.")
 
     def cmd_unsilence(self, player, msg, channel):
         """ Unsilences a player if silenced. """

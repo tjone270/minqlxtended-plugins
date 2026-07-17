@@ -34,7 +34,9 @@ class names(minqlxtended.Plugin):
         self.set_cvar_once("qlx_enforceSteamName", "1")
         
         self.steam_names = {}
-        self.name_set = False
+        # steam_ids whose name this plugin just set (so the resulting userinfo event
+        # is ignored). Scoped per-player so it can't leak into another player's event.
+        self.name_set = set()
 
         self._cache_variables()
 
@@ -51,17 +53,18 @@ class names(minqlxtended.Plugin):
         if name_key in self.db:
             db_name = self.db[name_key]
             if not self._qlx_enforceSteamName or self.clean_text(db_name).lower() == player.clean_name.lower():
-                self.name_set = True
+                self.name_set.add(player.steam_id)
                 player.name = db_name
 
     def handle_player_disconnect(self, player, reason):
         if player.steam_id in self.steam_names:
             del self.steam_names[player.steam_id]
+        self.name_set.discard(player.steam_id)
 
     def handle_userinfo(self, player, changed):
         # Make sure we're not doing anything if our script set the name.
-        if self.name_set:
-            self.name_set = False
+        if player.steam_id in self.name_set:
+            self.name_set.discard(player.steam_id)
             return
 
         if "name" in changed:
@@ -105,7 +108,7 @@ class names(minqlxtended.Plugin):
             player.tell("Blank names cannot be used. Sorry for the inconvenience.")
             return minqlxtended.RET_STOP_ALL
 
-        self.name_set = True
+        self.name_set.add(player.steam_id)
         name = "^7" + name
         player.name = name
         self.db[name_key] = name

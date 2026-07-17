@@ -175,12 +175,13 @@ class balance(minqlxtended.Plugin):
             for steam_id in players.copy():
                 gt = players[steam_id]
                 key = RATING_KEY.format(steam_id, gt)
-                if key in self.db:
+                local_elo = self.db.get(key)  # single GET; None when absent (was EXISTS + GET)
+                if local_elo is not None:
                     with self.ratings_lock:
                         if steam_id in self.ratings:
-                            self.ratings[steam_id][gt] = {"games": -1, "elo": int(self.db[key]), "local": True, "time": -1}
+                            self.ratings[steam_id][gt] = {"games": -1, "elo": int(local_elo), "local": True, "time": -1}
                         else:
-                            self.ratings[steam_id] = {gt: {"games": -1, "elo": int(self.db[key]), "local": True, "time": -1}}
+                            self.ratings[steam_id] = {gt: {"games": -1, "elo": int(local_elo), "local": True, "time": -1}}
                     del players[steam_id]
 
             if not players:
@@ -206,54 +207,62 @@ class balance(minqlxtended.Plugin):
             if res.status_code != requests.codes.ok:
                 continue
 
-            js = res.json()
-            if "players" not in js:
-                last_status = -1
-                continue
+            # A 200 response can still carry a non-JSON/malformed body (a common
+            # outage mode). Catch parse errors and treat them as a failed attempt
+            # so the request is retried/drained rather than stranded forever.
+            try:
+                js = res.json()
+                if "players" not in js:
+                    last_status = -1
+                    continue
 
-            # Fill our ratings dict with the ratings we just got.
-            for p in js["players"]:
-                sid = int(p["steamid"])
-                del p["steamid"]
-                t = time.time()
+                # Fill our ratings dict with the ratings we just got.
+                for p in js["players"]:
+                    sid = int(p["steamid"])
+                    del p["steamid"]
+                    t = time.time()
 
-                with self.ratings_lock:
-                    if sid not in self.ratings:
-                        self.ratings[sid] = {}
-
-                    for gt in p:
-                        p[gt]["time"] = t
-                        p[gt]["local"] = False
-                        self.ratings[sid][gt] = p[gt]
-                        if self.ratings[sid][gt]["elo"] == 0 and self.ratings[sid][gt]["games"] == 0:
-                            self.ratings[sid][gt]["elo"] = DEFAULT_RATING
-
-                        if sid in players and gt == players[sid]:
-                            # The API gave us the game type we wanted, so we remove it.
-                            del players[sid]
-
-                    # Fill the rest of the game types the API didn't return but supports.
-                    for gt in SUPPORTED_GAMETYPES:
-                        if gt not in self.ratings[sid]:
-                            self.ratings[sid][gt] = {"games": -1, "elo": DEFAULT_RATING, "local": False, "time": time.time()}
-
-            # If the API didn't return all the players, we set them to the default rating.
-            for sid in players:
-                with self.ratings_lock:
-                    if sid not in self.ratings:
-                        self.ratings[sid] = {}
-                    self.ratings[sid][players[sid]] = {"games": -1, "elo": DEFAULT_RATING, "local": False, "time": time.time()}
-
-            # Setting ratings for untracked players.
-            if "untracked" in js:
-                untracked_sids = list(map(lambda sid: int(sid), js["untracked"]))
-
-            for gt in SUPPORTED_GAMETYPES:
-                for sid in untracked_sids:
                     with self.ratings_lock:
                         if sid not in self.ratings:
                             self.ratings[sid] = {}
-                        self.ratings[sid][gt] = {"games": -1, "elo": UNTRACKED_RATING, "local": False, "time": time.time()}
+
+                        for gt in p:
+                            p[gt]["time"] = t
+                            p[gt]["local"] = False
+                            self.ratings[sid][gt] = p[gt]
+                            if self.ratings[sid][gt]["elo"] == 0 and self.ratings[sid][gt]["games"] == 0:
+                                self.ratings[sid][gt]["elo"] = DEFAULT_RATING
+
+                            if sid in players and gt == players[sid]:
+                                # The API gave us the game type we wanted, so we remove it.
+                                del players[sid]
+
+                        # Fill the rest of the game types the API didn't return but supports.
+                        for gt in SUPPORTED_GAMETYPES:
+                            if gt not in self.ratings[sid]:
+                                self.ratings[sid][gt] = {"games": -1, "elo": DEFAULT_RATING, "local": False, "time": time.time()}
+
+                # If the API didn't return all the players, we set them to the default rating.
+                for sid in players:
+                    with self.ratings_lock:
+                        if sid not in self.ratings:
+                            self.ratings[sid] = {}
+                        self.ratings[sid][players[sid]] = {"games": -1, "elo": DEFAULT_RATING, "local": False, "time": time.time()}
+
+                # Setting ratings for untracked players.
+                if "untracked" in js:
+                    untracked_sids = list(map(lambda sid: int(sid), js["untracked"]))
+
+                for gt in SUPPORTED_GAMETYPES:
+                    for sid in untracked_sids:
+                        with self.ratings_lock:
+                            if sid not in self.ratings:
+                                self.ratings[sid] = {}
+                            self.ratings[sid][gt] = {"games": -1, "elo": UNTRACKED_RATING, "local": False, "time": time.time()}
+            except (ValueError, KeyError, TypeError) as e:
+                self.logger.warning(f"balance: could not parse ratings response (attempt {attempts}): {e}")
+                last_status = -1
+                continue
 
             # Saving player info
             try:
@@ -558,6 +567,9 @@ class balance(minqlxtended.Plugin):
         else:
             channel.reply("Teams look good!")
             self.suggested_pair = None
+            # Reset agreement too; leaving it set makes handle_round_countdown try
+            # to zip(None, self.suggested_agree) and crash the countdown handler.
+            self.suggested_agree = [False, False]
 
         return True
 

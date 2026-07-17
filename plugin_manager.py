@@ -85,6 +85,7 @@ class plugin_manager(minqlxtended.Plugin):
                 channel.reply("Plug-ins failed to load:")
                 channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 minqlxtended.log_exception(self)
+                return
 
             channel.reply("Successfully loaded all plug-ins in ^6qlx_plugins^7.")
         f()

@@ -84,6 +84,9 @@ class motd(minqlxtended.Plugin):
 
     def cmd_setmotdall(self, player, msg, channel):
         """ Set the message of the day for all servers to the one specified. """
+        if len(msg) < 2:
+            return minqlxtended.RET_USAGE
+
         motds = self.db.smembers(MOTD_SET_KEY)
         db = self.db.pipeline()
         for path in motds:
@@ -120,6 +123,9 @@ class motd(minqlxtended.Plugin):
 
     def cmd_addmotd(self, player, msg, channel):
         """ Appends the specified text to the existing message of the day on this server. """
+        if len(msg) < 2:
+            return minqlxtended.RET_USAGE
+
         motd = self.db.get(self.motd_key)
         if not motd:
             self.db[self.motd_key] = " ".join(msg[1:])
@@ -133,6 +139,9 @@ class motd(minqlxtended.Plugin):
 
     def cmd_addmotdall(self, player, msg, channel):
         """ Appends the specified text to the existing message of the day on all servers. """
+        if len(msg) < 2:
+            return minqlxtended.RET_USAGE
+
         motds = self.db.smembers(MOTD_SET_KEY)
         for path in motds:
             motd_key = f"{MOTD_SET_KEY}:{path}"

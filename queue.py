@@ -161,7 +161,7 @@ class queue(minqlxtended.Plugin):
             if free_amount < maxplayers:
                 pushed = self._push_to_team(maxplayers - free_amount, "free")
 
-        # Only re-arm if we actually placed someone, so we keep draining the queue across
+        # Only re-arm if we placed someone, so we keep draining the queue across
         # 0.5s cycles without spinning forever when nobody can currently be placed.
         if pushed:
             self.pushFromQueue(0.5)
@@ -310,7 +310,9 @@ class queue(minqlxtended.Plugin):
         if (command.lower().strip() == "team s") and (player.team == "spectator"):
             self.remFromQueue(player)
             if player not in self._queue:
-                self.center_print(player, "You are set to spectate only")
+                # self.center_print is overridden to a no-op in this plugin; send it
+                # to the player directly so the confirmation reaches them.
+                player.center_print("You are set to spectate only")
 
     def handle_vote_ended(self, votes, vote, args, passed):
         if vote.lower().strip() == "teamsize":
@@ -332,10 +334,11 @@ class queue(minqlxtended.Plugin):
                 # only run if player is allowed to use clan tags
                 if not self.db.get_flag(player, NO_CLANTAG_FLAG_NAME):
                     tag_key = _tag_key.format(player.steam_id)
-                    if tag_key in self.db:
+                    dbtag = self.db.get(tag_key)  # single GET; None when absent (was EXISTS + GET)
+                    if dbtag is not None:
                         if len(tag) > 0:
                             tag += ' '
-                        tag += self.db[tag_key]
+                        tag += dbtag
 
                 cs = minqlxtended.parse_variables(value)
                 cs["xcn"] = tag

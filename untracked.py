@@ -70,10 +70,13 @@ class untracked(minqlxtended.Plugin):
             player.tell(PLAYER_DISALLOW_GAMEPLAY_MESSAGE)
             return minqlxtended.RET_STOP_ALL
 
+    @minqlxtended.next_frame
     def handle_untracked_player(self, player):
+        # Called from the @thread worker in check_player_trackable; marshal the
+        # engine mutations (kick / team change) back onto the main frame.
         if (player.valid) and (player.connection_state == "active"):
             if self._qlx_untrackedPlayerAction == ACTION_PREVENT_PLAYER_CONNECTION:
-                player.kick(self.clean_text(PLAYER_DISALLOW_GAMEPLAY_MESSAGE))
+                player.kick(self.clean_text(PLAYER_CONNECTION_MESSAGE))
             elif self._qlx_untrackedPlayerAction == ACTION_PREVENT_TEAM_CHANGE:
                 if player.team != "spectator":
                     player.team = "spectator"

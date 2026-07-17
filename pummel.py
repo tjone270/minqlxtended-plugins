@@ -33,13 +33,12 @@ class pummel(minqlxtended.Plugin):
             @minqlxtended.thread
             def f(self, victim, killer):
                 self.db.sadd(f"{PLAYER_KEY.format(killer.steam_id)}:pummeled", str(victim.steam_id))
-                self.db.incr(f"{PLAYER_KEY.format(killer.steam_id)}:pummeled:{str(victim.steam_id)}")
-        
-                killer_score = self.db[f"{PLAYER_KEY.format(killer.steam_id)}:pummeled:{str(victim.steam_id)}"]
-                victim_score = 0
-                if PLAYER_KEY.format(victim.steam_id) + ":pummeled:" + str(killer.steam_id) in self.db:
-                    victim_score = self.db[f"{PLAYER_KEY.format(victim.steam_id)}:pummeled:{str(killer.steam_id)}"]
-                
+                # incr returns the new counter, so use it directly (was a separate GET).
+                killer_score = self.db.incr(f"{PLAYER_KEY.format(killer.steam_id)}:pummeled:{str(victim.steam_id)}")
+
+                # Single GET, treating a missing key as 0 (was EXISTS + GET).
+                victim_score = self.db.get(f"{PLAYER_KEY.format(victim.steam_id)}:pummeled:{str(killer.steam_id)}") or 0
+
                 self.msg(f"^1PUMMEL!^7 {killer.name} ^1{killer_score}^7:^1{victim_score}^7 {victim.name}")
             f(self, victim, killer)
     
@@ -47,14 +46,18 @@ class pummel(minqlxtended.Plugin):
         """ Shows the calling player all the players they've pummeled who are currently connected to this server. """
         pummels = self.db.smembers(f"{PLAYER_KEY.format(player.steam_id)}:pummeled")
         players = self.teams()["spectator"] + self.teams()["red"] + self.teams()["blue"] + self.teams()["free"]
-        
+
+        # Match connected players against the pummeled set, then fetch every score
+        # in a single mget instead of one GET per match inside the nested loop.
+        matched = [pl for pl in players if str(pl.steam_id) in pummels]
+
         msg = ""
-        for p in pummels:
-            for pl in players:
-                if p == str(pl.steam_id):
-                    count = self.db[f"{PLAYER_KEY.format(player.steam_id)}:pummeled:{p}"]
-                    msg += pl.name + ": ^1" + count + "^7 "
-        
+        if matched:
+            keys = [f"{PLAYER_KEY.format(player.steam_id)}:pummeled:{str(pl.steam_id)}" for pl in matched]
+            scores = self.db.mget(keys)
+            for pl, count in zip(matched, scores):
+                msg += pl.name + ": ^1" + (count or "0") + "^7 "
+
         if msg == "":
             self.msg(f"{player}^7 has not pummeled anybody on this server.")
         else:

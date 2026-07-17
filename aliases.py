@@ -8,6 +8,7 @@ class aliases(minqlxtended.Plugin):
     def __init__(self):
         self.add_command("alias", self.cmd_alias, usage="<id>")
         self.add_command("clearaliases", self.cmd_clearaliases, 5)
+        self.add_command("tomtec_versions", self.cmd_showversion)
 
         self.set_cvar_once("qlx_aliasLimitOutputLines", "15")
 
@@ -15,12 +16,16 @@ class aliases(minqlxtended.Plugin):
 
         self._linelimit = self.get_cvar("qlx_aliasLimitOutputLines", int)
 
-    @minqlxtended.thread
     def cmd_alias(self, player, msg, channel):
         """Provides a list of aliases the server is aware of for the player ID/Steam ID provided."""
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
+        # The redis lookups below are slow, so run them off the main thread. The
+        # usage check stays here (non-threaded) so RET_USAGE takes effect.
+        self._lookup_aliases(player, msg, channel)
 
+    @minqlxtended.thread
+    def _lookup_aliases(self, player, msg, channel):
         try:
             ident = int(msg[1])
             if 0 <= ident < 64:
@@ -52,6 +57,8 @@ class aliases(minqlxtended.Plugin):
         for steamid in steamids:
             data[steamid] = list(self.db.lrange(f"minqlx:players:{steamid}", 0, -1))
 
+        response = ""
+        lineused = 0
         for sid, names in data.items():
             if lineused == self._linelimit:
                 break
@@ -69,7 +76,7 @@ class aliases(minqlxtended.Plugin):
         channel.reply(response)
     def cmd_clearaliases(self, player, msg, channel):
         """Clears all alias records from the server database."""
-        if player.steamid != minqlxtended.owner():
+        if player.steam_id != minqlxtended.owner():
             player.tell("You must be the owner of the server to execute this command.")
             return
 

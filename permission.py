@@ -127,8 +127,10 @@ class permission(minqlxtended.Plugin):
             channel.reply("You can do anything to me, master.")
             return
 
+        # get_permission never returns None (it defaults to 0), so detect a truly
+        # unknown player by the absence of a stored permission record.
         perm = self.db.get_permission(player)
-        if perm is None:
+        if perm == 0 and f"minqlx:players:{player.steam_id}:permission" not in self.db:
             channel.reply("I do not know you.")
         else:
             channel.reply(f"You have permission level ^6{perm}^7.")

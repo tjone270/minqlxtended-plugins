@@ -203,9 +203,14 @@ class essentials(minqlxtended.Plugin):
         if len(self.recent_cmds) == 1:
             player.tell("No commands have been recorded yet.")
         else:
+            viewer_perm = self.db.get_permission(player)
             player.tell(f"The most recent ^6{len(self.recent_cmds) - 1}^7 commands executed:")
-            for cmd in list(self.recent_cmds)[1:]:
-                player.tell(f"  {cmd[0].name} executed: {cmd[2]}")
+            for caller, command, args in list(self.recent_cmds)[1:]:
+                # Don't leak the arguments of commands the viewer isn't allowed to
+                # run (e.g. rcon/eval/db arguments typed by higher-permission admins).
+                if getattr(command, "permission", 0) > viewer_perm:
+                    args = "<hidden>"
+                player.tell(f"  {caller.name} executed: {args}")
 
         return minqlxtended.RET_STOP_ALL
 
@@ -280,6 +285,12 @@ class essentials(minqlxtended.Plugin):
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
 
+        # play_sound/players.remove need a real in-game caller; a console/rcon
+        # dummy has no client id and isn't in the player list.
+        if player not in self.players():
+            channel.reply("This command can only be used by an in-game player.")
+            return minqlxtended.RET_STOP_ALL
+
         if not self.db.get_flag(player, "essentials:sounds_enabled", default=True):
             player.tell(f"Sounds are disabled. Use ^6{self._qlx_commandPrefix}sounds^7 to enable them again.")
             return minqlxtended.RET_STOP_ALL
@@ -301,6 +312,12 @@ class essentials(minqlxtended.Plugin):
         """Plays music, but only for those with music volume on and the sounds flag on."""
         if len(msg) < 2:
             return minqlxtended.RET_USAGE
+
+        # play_music/players.remove need a real in-game caller; a console/rcon
+        # dummy has no client id and isn't in the player list.
+        if player not in self.players():
+            channel.reply("This command can only be used by an in-game player.")
+            return minqlxtended.RET_STOP_ALL
 
         if not self.db.get_flag(player, "essentials:sounds_enabled", default=True):
             player.tell(f"Sounds are disabled. Use ^6{self._qlx_commandPrefix}sounds^7 to enable them again.")
@@ -411,7 +428,7 @@ class essentials(minqlxtended.Plugin):
             player1 = self.player(i1)
             if not (0 <= i1 < 64) or not player1:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("The first ID is invalid.")
             return
 
@@ -420,7 +437,7 @@ class essentials(minqlxtended.Plugin):
             player2 = self.player(i2)
             if not (0 <= i2 < 64) or not player2:
                 raise ValueError
-        except ValueError:
+        except (ValueError, minqlxtended.NonexistentPlayerError):
             channel.reply("The second ID is invalid.")
             return
 
@@ -831,6 +848,10 @@ class essentials(minqlxtended.Plugin):
             if require:
                 teams = self.teams()
                 players = teams["red"] + teams["blue"] + teams["free"]
+                # No active players left to meet the threshold (e.g. the sole
+                # yes-voter is now spectating); don't divide by zero.
+                if not players:
+                    return
                 if sum(votes) / len(players) < require:
                     return
             minqlxtended.force_vote(True)
@@ -855,8 +876,9 @@ class essentials(minqlxtended.Plugin):
             # Ignore commented lines.
             if not li.startswith("#") and "|" in li:
                 key, value = line.split("|", 1)
-                # Maps are case-insensitive, but not factories.
-                key = key.lower()
+                # Maps are case-insensitive, but not factories. Strip surrounding
+                # whitespace so lookups (which use a bare map name) match.
+                key = key.strip().lower()
 
                 if key in mappool:
                     mappool[key].append(value.strip())
