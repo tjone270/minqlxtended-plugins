@@ -1,5 +1,22 @@
+# minqlxtended - Extends Quake Live's dedicated server with extra functionality and scripting.
+# Copyright (C) 2025-2026 Thomas Jones <me@thomasjones.id.au>
+
+# This file is part of minqlxtended.
+
+# minqlxtended is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# minqlxtended is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
+
 # infectedmm.py - a plugin for minqlxtended to recreate the Infected Mastermind game mode from yore.
-# Copyright (c) 2025 Thomas Jones (tjone270)
 
 import minqlxtended
 
@@ -9,16 +26,15 @@ INFECTED_TEAM = "red"
 STANDARD_TEAM = "blue"
 ITEM_PLASMAGUN = 16
 
-
 class infectedmm(minqlxtended.Plugin):
+    _g_rrInfectedMastermindHealthBonus = minqlxtended.setting("g_rrInfectedMastermindHealthBonus", 50)
+    _g_rrInfectedMastermindFragBonus = minqlxtended.setting("g_rrInfectedMastermindFragBonus", 3)
+    # _g_rrInfectedMastermindSpeed = minqlxtended.setting("g_rrInfectedMastermindSpeed", 1.0)  # don't know how to implement this yet
+    # _g_rrInfectedMastermindDrops = minqlxtended.setting("g_rrInfectedMastermindDrops", True) # don't know what this does yet
+
     def __init__(self):
         super().__init__()
         self.add_hook("new_game", self.handle_new_game)
-
-        self.set_cvar_once("g_rrInfectedMastermindHealthBonus", "50")
-        self.set_cvar_once("g_rrInfectedMastermindFragBonus", "3")
-        # self.set_cvar_once("g_rrInfectedMastermindSpeed", "1.0")  # don't know how to implement this yet
-        # self.set_cvar_once("g_rrInfectedMastermindDrops", "1")    # don't know what this does yet
 
         self._infected_mastermind_bot = None
         self._loaded = False
@@ -49,7 +65,7 @@ class infectedmm(minqlxtended.Plugin):
         def f(self):
             if not self.infected_mastermind_bot:
                 self.add_infected_mastermind_bot(spec=True)
-            elif (self.infected_mastermind_bot.team != "spectator") and (self.game.state == "warmup"):
+            elif (self.infected_mastermind_bot.team != minqlxtended.Team.SPECTATOR) and (self.game.state == minqlxtended.GameState.WARMUP):
                 self.infected_mastermind_bot.team = "spectator"
 
         f(self)
@@ -78,7 +94,7 @@ class infectedmm(minqlxtended.Plugin):
         self.logger.debug("Infected Mastermind hooks removed.")
         self._loaded = False
 
-    def handle_player_connect(self, player):
+    def handle_player_connect(self, player, is_bot):
         if not self.is_infected_mastermind_gametype:
             return
 
@@ -90,19 +106,21 @@ class infectedmm(minqlxtended.Plugin):
             self._infected_mastermind_bot = None
 
     @minqlxtended.next_frame
-    def handle_game_start(self, data):
+    def handle_game_start(self):
         if not self.is_infected_mastermind_gametype:
             return
 
         if not self.infected_mastermind_bot:
+            # `addbot` is a console command, so the bot doesn't exist yet when it
+            # returns. Add it straight onto the infected team and let player_connect
+            # pick it up once it joins.
             self.add_infected_mastermind_bot(spec=False, delay=0)
+            return
 
-        bot = self.infected_mastermind_bot
-        if bot:
-            bot.team = INFECTED_TEAM
+        self.infected_mastermind_bot.team = INFECTED_TEAM
 
     @minqlxtended.next_frame
-    def handle_game_end(self, data):
+    def handle_game_end(self, aborted):
         if not self.is_infected_mastermind_gametype:
             return
 
@@ -112,7 +130,7 @@ class infectedmm(minqlxtended.Plugin):
         self.infected_mastermind_bot.team = "spectator"
 
     @minqlxtended.next_frame
-    def handle_kill(self, victim, killer, data):
+    def handle_kill(self, victim, killer, mod):
         if not self.is_infected_mastermind_gametype:
             return
 
@@ -121,20 +139,20 @@ class infectedmm(minqlxtended.Plugin):
             killer.center_print(f"You slayed the ^1{INFECTED_MASTERMIND_BOT_NAME}^7!")
             self.center_print(f"{killer.name}^7 looted the Mastermind!")
             self.logger.info(f"{killer.name} killed the mastermind, increasing score by the frag bonus.")
-            killer.score += self.get_cvar("g_rrInfectedMastermindFragBonus", int)  # killer gets a bonus if they kill the mastermind
+            killer.score += self._g_rrInfectedMastermindFragBonus  # killer gets a bonus if they kill the mastermind
 
-            position = victim.position()
+            position = victim.position
             minqlxtended.spawn_item(ITEM_PLASMAGUN, int(position.x), int(position.y), int(position.z) + 10)  # drop Plasma Gun at bot's position
 
-    def handle_team_switch_attempt(self, player, old_team, new_team):
+    def handle_team_switch_attempt(self, player, old_team, new_team, target):
         if not self.is_infected_mastermind_gametype:
             return
 
         if self.is_infected_mastermind_bot(player):
             if new_team == STANDARD_TEAM:
-                return minqlxtended.RET_STOP_ALL  # mastermind bot cannot ever switch to standard team
-            elif (self.game.state != "warmup") and (new_team != INFECTED_TEAM):
-                return minqlxtended.RET_STOP_ALL  # mastermind bot can only switch to the infected team during active games
+                return minqlxtended.Return.STOP_ALL  # mastermind bot cannot ever switch to standard team
+            elif (self.game.state != minqlxtended.GameState.WARMUP) and (new_team != INFECTED_TEAM):
+                return minqlxtended.Return.STOP_ALL  # mastermind bot can only switch to the infected team during active games
 
     @minqlxtended.next_frame
     def handle_round_countdown(self, round_number):
@@ -148,7 +166,7 @@ class infectedmm(minqlxtended.Plugin):
         for player in self.players():
             if self.is_infected_mastermind_bot(player):
                 self.transfer_player(player, INFECTED_TEAM)  # mastermind is always infected at the start of a round
-            elif player.team == "spectator":
+            elif player.team == minqlxtended.Team.SPECTATOR:
                 continue  # spectator players are not moved to any team
             elif player.team == INFECTED_TEAM:
                 self.transfer_player(player, STANDARD_TEAM)  # infected players are moved to the standard team
@@ -159,17 +177,17 @@ class infectedmm(minqlxtended.Plugin):
             return
 
         if self.is_infected_mastermind_bot(player):
-            player.health += self.get_cvar("g_rrInfectedMastermindHealthBonus", int) * len(
+            player.health += self._g_rrInfectedMastermindHealthBonus * len(
                 self.teams()[STANDARD_TEAM]
             )  # mastermind gets a health bonus based on the number of uninfected players
-            player.weapons(reset=True, pg=True)  # nothing but Plasma Gun in inventory
-            player.ammo(reset=True, pg=-1)  # infinite ammo
-            player.weapon(8)  # select Plasma Gun weapon
+            player.weapons = minqlxtended.NO_WEAPONS._replace(pg=True)  # nothing but Plasma Gun in inventory
+            player.ammo = minqlxtended.NO_AMMO._replace(pg=-1)  # infinite ammo
+            player.weapon = minqlxtended.Weapon.PLASMAGUN  # select Plasma Gun weapon
 
     def add_infected_mastermind_bot(self, spec: bool = True, delay: int = 1000):
         if not self.get_cvar("bot_enable", bool):
             self.logger.warning("Bots are disabled, cannot add mastermind bot. Falling back to standard Infected mode.")
-            minqlxtended.set_cvar("g_rrInfected", "1", -1)
+            minqlxtended.set_cvar("g_rrInfected", "1", force=True)
             return
 
         if self.infected_mastermind_bot:
@@ -195,7 +213,7 @@ class infectedmm(minqlxtended.Plugin):
 
     @property
     def is_infected_mastermind_gametype(self):
-        return (self.get_cvar("g_rrInfected", int) == 2) and (self.game) and (self.game.type_short == "rr")
+        return (self.get_cvar("g_rrInfected", int) == 2) and (self.game) and (self.game.type_short == minqlxtended.Gametype.RED_ROVER)
 
     @property
     def infected_mastermind_bot(self) -> minqlxtended.Player | None:

@@ -1,14 +1,15 @@
-# minqlx - A Quake Live server administrator bot.
+# minqlxtended - Extends Quake Live's dedicated server with extra functionality and scripting.
 # Copyright (C) 2015 Mino <mino@minomino.org>
+# Copyright (C) 2016-2026 Thomas Jones <me@thomasjones.id.au>
 
 # This file is part of minqlxtended.
 
-# minqlx is free software: you can redistribute it and/or modify
+# minqlxtended is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# minqlx is distributed in the hope that it will be useful,
+# minqlxtended is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -16,20 +17,21 @@
 # You should have received a copy of the GNU General Public License
 # along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
-# Updated 31/07/2024 to make compatible with minqlxtended.
-
 import minqlxtended
 
 class workshop(minqlxtended.Plugin):
-    def __init__(self):
-        super().__init__()
-        self.add_hook("map", self.handle_map)
+    _qlx_workshopReferences = minqlxtended.setting("qlx_workshopReferences", "", type=list)
 
-        self.set_cvar_once("qlx_workshopReferences", "")
+    @minqlxtended.hook("map")
+    def handle_map(self, mapname, factory):
+        # An empty cvar parses to [''], so drop the blank entries.
+        references = [item for item in self._qlx_workshopReferences if item]
+        if not references:
+            return
 
-    def handle_map(self, *args, **kwargs):
-        # Reference our custom workshop items. get_cvar(..., list) turns an empty cvar into [''],
-        # so filter out blank entries before extending the workshop list.
-        references = [item for item in self.get_cvar("qlx_workshopReferences", list) if item]
-        if references:
-            self.game.workshop_items += references
+        # Game() raises while CS_SERVERINFO is empty, which self.game turns into None.
+        game = self.game
+        if game is None:
+            return
+
+        game.workshop_items += references

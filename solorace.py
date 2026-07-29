@@ -1,14 +1,15 @@
-# minqlx - A Quake Live server administrator bot.
+# minqlxtended - Extends Quake Live's dedicated server with extra functionality and scripting.
 # Copyright (C) 2015 Mino <mino@minomino.org>
+# Copyright (C) 2016-2026 Thomas Jones <me@thomasjones.id.au>
 
 # This file is part of minqlxtended.
 
-# minqlx is free software: you can redistribute it and/or modify
+# minqlxtended is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# minqlx is distributed in the hope that it will be useful,
+# minqlxtended is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -26,21 +27,42 @@ import minqlxtended
 class solorace(minqlxtended.Plugin):
     def __init__(self):
         super().__init__()
-        self.add_hook("team_switch", self.handle_team_switch)
-        self.add_hook("player_disconnect", self.handle_player_disconnect)
-        self.add_hook("new_game", self.handle_new_game)
 
+        # What the server config asked for. Race turns warmup off; every other gametype,
+        # and unloading this plugin, gets this value back.
+        self._g_doWarmup = self.get_cvar("g_doWarmup") or "1"
+
+    def unload(self):
+        self.set_cvar("g_doWarmup", self._g_doWarmup)
+
+    @minqlxtended.hook("team_switch")
     def handle_team_switch(self, player, old_team, new_team):
-        if (self.game.type_short == "race") and (old_team == "free") and (self.game.state == "in_progress") and (not self.teams()["free"]):
-            minqlxtended.console_command("map_restart")
-    
-    def handle_player_disconnect(self, player, reason):
-        if (self.game) and (self.game.type_short == "race") and (len(self.teams()["free"]) == 1) and (player.team == "free"):
+        game = self.game
+        if game is None:
+            return  # mid map change; Plugin.game hands back None rather than raising
+
+        if (game.type_short == minqlxtended.Gametype.RACE) and (old_team == minqlxtended.Team.FREE) and (game.state == minqlxtended.GameState.IN_PROGRESS) and (not self.teams()["free"]):
             minqlxtended.console_command("map_restart")
 
+    @minqlxtended.hook("player_disconnect")
+    def handle_player_disconnect(self, player, reason):
+        # Race only. FFA and the other non-team gametypes also put players on "free",
+        # and restarting the map when one of them leaves is wrong.
+        game = self.game
+        if game is None or game.type_short != minqlxtended.Gametype.RACE:
+            return
+
+        if (len(self.teams()["free"]) == 1) and (player.team == minqlxtended.Team.FREE):
+            minqlxtended.console_command("map_restart")
+
+    @minqlxtended.hook("new_game")
     def handle_new_game(self):
-        if self.game.type_short == "race":
+        game = self.game
+        if game is None:
+            return
+
+        if game.type_short == minqlxtended.Gametype.RACE:
             self.set_cvar("g_doWarmup", "0")
-            minqlxtended.allow_single_player(True)
+            game.is_training_map = True
         else:
-            self.set_cvar("g_doWarmup", "1")
+            self.set_cvar("g_doWarmup", self._g_doWarmup)

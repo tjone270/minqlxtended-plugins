@@ -1,14 +1,15 @@
-# minqlx - A Quake Live server administrator bot.
+# minqlxtended - Extends Quake Live's dedicated server with extra functionality and scripting.
 # Copyright (C) 2015 Mino <mino@minomino.org>
+# Copyright (C) 2016-2026 Thomas Jones <me@thomasjones.id.au>
 
 # This file is part of minqlxtended.
 
-# minqlx is free software: you can redistribute it and/or modify
+# minqlxtended is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# minqlx is distributed in the hope that it will be useful,
+# minqlxtended is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -19,19 +20,11 @@
 import minqlxtended
 
 class plugin_manager(minqlxtended.Plugin):
-    def __init__(self):
-        super().__init__()
-        self.add_command("load", self.cmd_load, 5, usage="<plug-in>")
-        self.add_command("unload", self.cmd_unload, 5, usage="<plug-in>")
-        self.add_command("reload", self.cmd_reload, 5, usage="<plug-in>")
-        self.add_command("loadall", self.cmd_loadall, 5)
-        self.add_command("unloadall", self.cmd_unloadall, 5)
-        self.add_command("reloadall", self.cmd_reloadall, 5)
-    
+    @minqlxtended.command("load", permission=5, usage="<plug-in>")
     def cmd_load(self, player, msg, channel):
         """ Loads the specified plug-in (omitting the file extension.) """
         if len(msg) < 2:
-            return minqlxtended.RET_USAGE
+            return minqlxtended.Return.USAGE
         else:
             try:
                 minqlxtended.load_plugin(msg[1])
@@ -40,11 +33,12 @@ class plugin_manager(minqlxtended.Plugin):
                 channel.reply(f"Plug-in ^6{msg[1]}^7 has failed to load:")
                 channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 minqlxtended.log_exception(self)
-    
+
+    @minqlxtended.command("unload", permission=5, usage="<plug-in>")
     def cmd_unload(self, player, msg, channel):
         """ Unloads the specified plug-in. """
         if len(msg) < 2:
-            return minqlxtended.RET_USAGE
+            return minqlxtended.Return.USAGE
         else:
             try:
                 minqlxtended.unload_plugin(msg[1])
@@ -53,11 +47,12 @@ class plugin_manager(minqlxtended.Plugin):
                 channel.reply(f"Plug-in ^6{msg[1]}^7 has failed to unload:")
                 channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 minqlxtended.log_exception(self)
-    
+
+    @minqlxtended.command("reload", permission=5, usage="<plug-in>")
     def cmd_reload(self, player, msg, channel):
         """ Reloads the specified plug-in. """
         if len(msg) < 2:
-            return minqlxtended.RET_USAGE
+            return minqlxtended.Return.USAGE
         else:
             # Wrap in next_frame to avoid the command going off several times due
             # to the plugins dict being modified mid-command execution.
@@ -73,6 +68,7 @@ class plugin_manager(minqlxtended.Plugin):
 
             f()
 
+    @minqlxtended.command("loadall", permission=5)
     def cmd_loadall(self, player, msg, channel):
         """ Loads all plug-ins specified in the qlx_plugins CVAR. """
         # Wrap in next_frame to avoid the command going off several times due
@@ -90,6 +86,7 @@ class plugin_manager(minqlxtended.Plugin):
             channel.reply("Successfully loaded all plug-ins in ^6qlx_plugins^7.")
         f()
 
+    @minqlxtended.command("unloadall", permission=5)
     def cmd_unloadall(self, player, msg, channel):
         """ Unloads all plug-ins currently loaded (except the 'plugin_manager' plug-in.) """
         for plugin in self.plugins:
@@ -103,6 +100,7 @@ class plugin_manager(minqlxtended.Plugin):
 
         channel.reply(f"Successfully unloaded all plug-ins except {self.__class__.__name__}.")
 
+    @minqlxtended.command("reloadall", permission=5)
     def cmd_reloadall(self, player, msg, channel):
         """ Reloads all plug-ins currently loaded (except the 'plugin_manager' plug-in.) """
         # Wrap in next_frame to avoid the command going off several times due

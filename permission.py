@@ -1,14 +1,15 @@
-# minqlx - A Quake Live server administrator bot.
+# minqlxtended - Extends Quake Live's dedicated server with extra functionality and scripting.
 # Copyright (C) 2015 Mino <mino@minomino.org>
+# Copyright (C) 2016-2026 Thomas Jones <me@thomasjones.id.au>
 
 # This file is part of minqlxtended.
 
-# minqlx is free software: you can redistribute it and/or modify
+# minqlxtended is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# minqlx is distributed in the hope that it will be useful,
+# minqlxtended is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -25,32 +26,17 @@ being able to handle minqlxtended.Player instances.
 
 import minqlxtended
 
-
 class permission(minqlxtended.Plugin):
-    def __init__(self):
-        super().__init__()
-        self.add_command("setperm", self.cmd_setperm, 5, usage="<id> <level>")
-        self.add_command("getperm", self.cmd_getperm, 5, usage="<id>")
-        self.add_command("listperms", self.cmd_listperms, 5)
-        self.add_command("myperm", self.cmd_myperm, channels=("chat", "red_team_chat", "blue_team_chat", "spectator_chat", "free_chat", "client_command"))
-
+    @minqlxtended.command("setperm", permission=5, usage="<id> <level>")
     def cmd_setperm(self, player, msg, channel):
         """Sets the specified player's permission level to that specified."""
         if len(msg) < 3:
-            return minqlxtended.RET_USAGE
+            return minqlxtended.Return.USAGE
 
-        try:
-            ident = int(msg[1])
-            target_player = None
-            if 0 <= ident < 64:
-                target_player = self.player(ident)
-                ident = target_player.steam_id
-        except ValueError:
-            channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
+        resolved = self.resolve_identifier(msg[1], channel)
+        if resolved is None:
             return
-        except minqlxtended.NonexistentPlayerError:
-            channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
-            return
+        ident, _name, target_player = resolved
 
         try:
             level = int(msg[2])
@@ -65,38 +51,36 @@ class permission(minqlxtended.Plugin):
 
         channel.reply(f"^6{name}^7 was given permission level ^6{level}^7.")
 
+    @minqlxtended.command("getperm", permission=5, usage="<id>")
     def cmd_getperm(self, player, msg, channel):
         """Responds with the specified player's permission level."""
         if len(msg) < 2:
-            return minqlxtended.RET_USAGE
+            return minqlxtended.Return.USAGE
 
-        try:
-            ident = int(msg[1])
-            target_player = None
-            if 0 <= ident < 64:
-                target_player = self.player(ident)
-                ident = target_player.steam_id
-
-            if ident == minqlxtended.owner():
-                channel.reply("That's my master.")
-                return
-        except ValueError:
-            channel.reply("Invalid ID. Use either a client ID or a SteamID64.")
+        resolved = self.resolve_identifier(msg[1], channel)
+        if resolved is None:
             return
-        except minqlxtended.NonexistentPlayerError:
-            channel.reply("Invalid client ID. Use either a client ID or a SteamID64.")
+        ident, _name, target_player = resolved
+
+        if ident == minqlxtended.owner():
+            channel.reply("That's my master.")
             return
 
         perm = self.db.get_permission(ident)
         name = target_player.name if target_player else str(ident)
         channel.reply(f"^6{name}^7 has permission level ^6{perm}^7.")
 
-    @minqlxtended.thread
+    @minqlxtended.command("listperms", permission=5)
     def cmd_listperms(self, player, msg, channel):
         """Lists all players with a permission level greater than 0."""
+        # Thread the Redis work, never the handler itself. @minqlxtended.thread makes it
+        # return a Thread, which discards Return.USAGE.
+        self._list_perms(channel)
 
-        # Use SCAN rather than KEYS so we don't block the Redis server on large datasets,
-        # then batch the permission/name lookups into two round-trips instead of 2N.
+    @minqlxtended.thread
+    def _list_perms(self, channel):
+        # SCAN rather than KEYS, so a large dataset doesn't block the Redis server. The
+        # permission and name lookups batch into two round-trips.
         perm_keys = list(self.db.scan_iter(match="minqlx:players:*:permission"))
         steam_ids = [key.split(":")[2] for key in perm_keys]
 
@@ -117,19 +101,21 @@ class permission(minqlxtended.Plugin):
             channel.reply("No players with permission levels greater than 0.")
             return
 
-        channel.reply("^7Permissions list:")
-        for player_name, permission in players_permissions.items():
-            channel.reply(f" {player_name}^7: ^6{permission}^7")
+        # One reliable command rather than one per admin, since a long permissions list
+        # eats the caller's 64-slot ring.
+        self.reply_lines(channel, ["^7Permissions list:"]
+                         + [f" {name}^7: ^6{permission}^7" for name, permission in players_permissions.items()])
 
+    @minqlxtended.command("myperm", channels=("chat", "red_team_chat", "blue_team_chat", "spectator_chat", "free_chat", "client_command"))
     def cmd_myperm(self, player, msg, channel):
         """Respond with the calling player's permission level."""
         if player.steam_id == minqlxtended.owner():
             channel.reply("You can do anything to me, master.")
             return
 
-        # get_permission never returns None (it defaults to 0), so detect a truly
-        # unknown player by the absence of a stored permission record.
         perm = self.db.get_permission(player)
+        # get_permission defaults a missing key to 0, so telling "level 0" from "never
+        # seen" means asking whether the key is there.
         if perm == 0 and f"minqlx:players:{player.steam_id}:permission" not in self.db:
             channel.reply("I do not know you.")
         else:

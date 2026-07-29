@@ -4,14 +4,16 @@ The Python dependencies are included in requirements.txt. Make sure you run `pyt
 
 This repository contains original plugins from the [minqlx-plugins](https://github.com/MinoMino/minqlx-plugins) repository which have been improved or further documented.
 
+**These need minqlxtended v1.0.0 or later, and won't run on minqlx.** If you're porting a plugin of your own, see [the upgrade guide](https://github.com/tjone270/minqlxtended/blob/master/docs/upgrading.md).
+
 ## CVAR Reference
 This is a list of plugins and their CVARs. Set the CVARs by passing them as a command line argument or using `server.cfg`
 like you would with any other QLDS CVAR.
 
-- **aliases**: Adds the `!alias <id>` command to look up the known names a player has used, correlated via the IP addresses recorded against their Steam ID in the database. Also adds `!clearaliases` (owner only) to wipe all stored alias records.
+- **aliases**: Adds `!alias <id>` to look up the other names a player has used, matched on the IP addresses recorded against their Steam ID. Also adds `!clearaliases` (owner only) to wipe every stored alias.
   - `qlx_aliasLimitOutputLines`: The maximum number of alias lines to print before the remainder of the output is truncated.
     - Default: `15`
-- **balance**: Adds commands and CVARs to help balance teams in team games using ratings provided by third-party services (like [QLStats](https://qlstats.net)). 
+- **balance**: Adds commands and CVARs to help balance teams in team games using ratings provided by third-party services (like [QLStats](https://qlstats.net)).
   - `qlx_balanceAuto`: A boolean determining whether or not we should automatically try to balance teams if a shuffle vote passes.
     - Default: `1`
   - `qlx_balanceUseLocal`: A boolean determining whether or not it should use local ratings set by the `!setrating` command.
@@ -22,27 +24,13 @@ like you would with any other QLDS CVAR.
     - Default: `25`
   - `qlx_balanceMinimumSuggestionActionDiff`: The minimum rating difference before the balancer automatically performs the suggested switch instead of merely suggesting it and waiting for the affected players to agree (with `!a`). If the game is in progress, the switch is applied at the start of the next round; otherwise it is applied immediately.
     - Default: `50`
-  - `qlx_balanceCancelSuggestionAfterRound`: A boolean determining whether a pending switch suggestion that has not been agreed to is cancelled at the end of the round.
-    - Default: `1`
   - `qlx_balanceUrl`: The address to the site hosting an instance of [PredatH0r's XonStat fork](https://github.com/PredatH0r/XonStat), which is currently the only supported rating service.
     - Default: `qlstats.net`, which is hosted by PredatH0r himself.
   - `qlx_balanceApi`: The endpoint to use for ratings calls.
     - Default: `elo`
     - Alternative: `elo_b`
-- **ban**: Adds command to ban people for a set amount of time. Also adds functionality to ban for automatically for leaving too many games.
-  - `qlx_leaverBan`: A boolean deciding whether or not it should automatically ban players for leaving.
-    - Default: `0`
-  - `qlx_leaverBanThreshold`:  If `qlx_leaverBan` is `1`, determines the percentage of games (in decimal) a player has
-  to go below before automatic banning takes place.
-    - Default: `0.63`
-  - `qlx_leaverBanWarnThreshold`: If `qlx_leaverBan` is `1`, determines the percentage of games (in decimal) a player has
-  to go below before a player is warned about his/her leaves.
-    - Default: `0.78`
-  - `qlx_leaverBanMinimumGames`: If `qlx_leaverBan` is `1`, determines the minimum number of games a player has to player before automatic banning takes place. If it determines a player cannot possibly recover even if they were to not leave any future games before the minimum, the player will  still be banned.
-    - Default: `15`
-  - `qlx_statOtherPlayersPermission`: The permission level required for players to use the `!leaves` command to obtain other player statistics.
-    - Default: `1`
-- **branding**: Lets you personalise your server by overriding the map loading screen text and printing custom messages on connect, load, countdown and game end. The brand fields are only applied when their corresponding CVAR is set, so all of them default to unset (no branding).
+- **ban**: Adds commands to ban people for a set amount of time (`!ban`, `!unban`, `!checkban`). Leaver tracking now lives in **leaverban**, and `!checkban` asks it for the leaver half when it's loaded. No CVARs.
+- **branding**: Overrides the map loading screen text and prints your own messages on connect, load, countdown and game end. Set only the CVARs you want; anything left unset isn't shown at all.
   - `qlx_serverBrandName`: Text shown in place of the map name on the loading screen.
     - Default: unset
   - `qlx_serverBrandTopField`: Text appended after the map author credit (line 1).
@@ -64,7 +52,18 @@ like you would with any other QLDS CVAR.
   - `qlx_rainbowBrandName`: A boolean determining whether `qlx_serverBrandName` is rendered in rotating rainbow colours.
     - Default: `0`
 - **clan**: Adds commands to let players have persistent clan tags without having to change the name on Steam.
-- **dictionary**: Adds the `!define <term>` command, letting players look up Urban Dictionary definitions in-game.
+- **custom_votes**: Adds a large set of `/cv` call-votes. See `!listcv` in-game for the full list.
+  - `qlx_disablePlayerRemoval`: Prevents non-privileged players from using `/cv kick` or `/cv tempban`.
+    - Default: `0`
+  - `qlx_disableCvarVoting`: Prevents anyone from calling a `/cv cvar` vote.
+    - Default: `1`
+  - `qlx_disableServerRebootVote`: Prevents `/cv reboot`.
+    - Default: `0`
+  - `qlx_cvarVotePermissionRequired`: The permission level required to call a CVAR vote.
+    - Default: `4`
+  - `qlx_glasshouse`: Kicks the caller of a `kick`, `clientkick` or `tempban` vote that fails, which discourages frivolous ones. Permission level 1 and above are exempt. This was the standalone **glasshouse** plugin.
+    - Default: `1`
+- **dictionary**: Adds `!define <term>` to look up Urban Dictionary definitions in-game.
 - **docs**: A plugin that generates a command list of all the plugins currently loaded, in the form of a Markdown file.
 - **essentials**: Adds commands for the regular QLDS commands and some more. Adds functionality to restrict teamsize voting and to pass votes before it fails if the majority votes yes.
   - `qlx_votepass`: A boolean deciding whether or not it should automatically pass votes before they fail if the majority voted yes.
@@ -75,23 +74,47 @@ like you would with any other QLDS CVAR.
     - Default: `1`
   - `qlx_teamsizeMaximum`: The maximum teamsize allowed to vote for. `!teamsize` can override this.
     - Default: `8` (if teams are full and teamsize is above 8, players will not be visible on the scoreboard)
-  - `qlx_enforceMappool`: A boolean determining whether map votes are restricted to the maps/factories defined in the server's map pool file (`sv_mappoolfile`). When `0`, players may vote for any map.
+  - `qlx_enforceMappool`: A boolean determining whether or not map votes are restricted to the maps and factories in the server's map pool file (`sv_mappoolfile`).
     - Default: `0`
-- **fun**: Plays voice-over and taunt sounds in response to certain chat phrases (e.g. `gl hf`, `haha yeah`, `impressive`). Also adds the `!cookies` command. Respects the per-player sound toggle provided by **essentials**.
+- **fun**: Plays voice-over and taunt sounds in response to certain chat phrases (e.g. `gl hf`, `haha yeah`, `impressive`). Also adds `!cookies`. Respects the per-player sound toggle from **essentials**.
   - `qlx_funSoundDelay`: The minimum number of seconds between fun sounds, to prevent spam.
     - Default: `3`
-- **glasshouse**: Discourages frivolous vote-kicks by kicking the caller of a `kick`, `clientkick` or `tempban` vote if that vote fails. Players with permission level 1 or above are exempt.
-- **infectedmm**: Recreates the classic "Infected Mastermind" game mode, spawning a special "mastermind" bot with bonus health and a plasma gun. Only active on a Red Rover (`rr`) game with `g_rrInfected` set to `2`.
+- **infectedmm**: Recreates the classic "Infected Mastermind" game mode, spawning a special "mastermind" bot with bonus health and a plasma gun. Needs a Red Rover (`rr`) game with `g_rrInfected` set to `2`.
   - `g_rrInfectedMastermindHealthBonus`: The bonus health the mastermind gains, per uninfected player, each time it spawns.
     - Default: `50`
   - `g_rrInfectedMastermindFragBonus`: The bonus score awarded to a player who kills the mastermind.
     - Default: `3`
-- **last_in**: Tracks and reports the last player to join each team. Adds `!lastin`, and `!c`/`!count` to display the number of players on each team (useful when the scoreboard is full).
+- **lan**: Tells LAN players when they've reached the server the long way round, through the router and back, and asks them to reconnect on the LAN hostname. Adds `!lan` to show how each connected player is getting to the server. The LAN is worked out from the kernel routing table, so on an ordinary install you won't need any of the CVARs below. Set them when that guess comes out wrong, most likely inside a container. If it can't work your network out, everybody gets in.
+  - `qlx_lanPlayersOnly`: A boolean determining whether or not players from outside the LAN are refused. Ignored if no LAN subnet was found.
+    - Default: `0`
+  - `qlx_lanAllowIndirectConnections`: A boolean determining whether or not players coming in via the router are left alone instead of being asked to reconnect.
+    - Default: `0`
+  - `qlx_lanSubnets`: A comma-separated list of CIDR networks to treat as the LAN, e.g. `192.168.1.0/24, 10.0.0.0/8`. You'll need this if your LAN uses public address space, since detection only accepts private ranges.
+    - Default: empty, which detects the directly-connected subnets from the routing table.
+  - `qlx_lanRouter`: The LAN-side address of the router, used to spot players coming back in through NAT. The check is off while this is unknown.
+    - Default: empty, which uses the default gateway from the routing table.
+  - `qlx_lanHostname`: The hostname LAN players should connect to instead, e.g. `lan.example.com`. The port is appended for you from `net_port`. No reconnect message is sent while this is unset.
+    - Default: empty
+  - `qlx_lanInterface`: Restrict detection to a single interface, e.g. `eth0`. Useful on a multi-homed machine, or to point past a container's virtual interface.
+    - Default: empty, which considers every interface except loopback.
+- **last_in**: Tracks and reports the last player to join each team. Adds `!lastin`, plus `!c`/`!count` to count the players on each team.
+- **leaverban**: Tracks players who leave games in progress and bans repeat offenders. Adds `!forgive`, `!gamestats`/`!leaves`, `!tracked` and `!checkleaver`.
+  - `qlx_leaverBan`: A boolean deciding whether or not it should automatically ban players for leaving.
+    - Default: `0`
+  - `qlx_leaverBanRollingWindowDays`: The number of days a leave counts against a player.
+    - Default: `30`
+  - `qlx_leaverBanMaxLeaves`: How many leaves within the rolling window trigger a ban. The ban is 24 hours for the first leave over the threshold, plus another 24 for each one after that.
+    - Default: `3`
+  - `qlx_leaverBanDiscordWebhook`: A Discord webhook URL to post leave and ban notifications to. Leave it empty for no notifications.
+    - Default: unset
+  - `qlx_statOtherPlayersPermission`: The permission level required for players to use the `!leaves` command to obtain other player statistics.
+    - Default: `1`
 - **log**: A plugin that logs chat and commands. All logs go to `fs_homepath/chatlogs`.
   - `qlx_chatlogs`: The maximum number of logs to keep around. If set to `0`, no maximum is enforced.
     - Default: `10`
   - `qlx_chatlogsSize`: The maximum size of a log in bytes before it starts with a new one.
     - Default: `3000000` (3 MB)
+- **maptools**: Adds `!mapinfo [map]` to show a map's gametypes and title, `!factories [map]` to list the factories it declares, and `!spawnvis` (permission level 5) to drop a temporary marker on every spawn point. No CVARs.
 - **motd**: Adds commands to set a message of the day.
   - `qlx_motdSound`: The path to a sounds that is played when players connect and have the MOTD printed to them.
     - Default: `sound/vo/crash_new/37b_07_alt.wav`
@@ -103,29 +126,31 @@ like you would with any other QLDS CVAR.
     - Default: `1`
 - **permission**: Adds commands to set player permissions.
 - **plugin_manager**: Adds commands to load, reload and unload plugins at run-time.
-- **pummel**: Tracks gauntlet ("pummel") kills between players and announces a running head-to-head tally. Adds `!pummel` to list the connected players you've pummeled.
-- **queue**: Adds a polite play queue so players join in order when the teams are full, along with AFK handling. Adds `!q`/`!queue`, `!afk`, `!here`, and `!teamsize`/`!ts`.
+- **pummel**: Tracks gauntlet ("pummel") kills between players and announces a running head-to-head tally. Adds `!pummel` to list the connected players you've pummelled.
+- **queue**: Adds a play queue so players join in order when the teams are full, plus AFK handling. Adds `!q`/`!queue`, `!afk`, `!here` and `!teamsize`/`!ts`.
   - `qlx_queueSetAfkPermission`: The permission level required to mark *other* players as AFK.
     - Default: `2`
   - `qlx_queueAFKTag`: The clan-tag-style marker shown next to players who are AFK.
     - Default: `^3AFK`
 - **raw**: Adds commands to interact with the Python interpreter directly. Useful for debugging.
+- **scores**: Puts the calling player's own score, K/D, damage and ping in the scoreboard title when they press TAB. Only that player sees it, and it stays until they press TAB again or the map changes. No CVARs.
 - **silence**: Adds commands to mute a player for an extended period of time. This persists across player reconnections, as opposed to the default mute behavior of `qzeroded`. Silencing a player has additional effects, such as preventing name changes and vote calling.
 - **solorace**: A plugin that starts the game and keeps it running on a race server without requiring a minimum of two players, like you usually do with race.
 - **stats**: Reports per-round damage statistics, announcing the player who dealt the most damage at the end of each round.
 - **sv_fps**: Allows the otherwise read-only `sv_fps` CVAR to be changed at run-time. Adds `!sv_fps`/`!svfps <integer>` (the value must be a positive multiple of the base value, `40`).
   - `qlx_svfps`: The `sv_fps` value to apply on startup. Must be a positive multiple of `40`.
     - Default: `40`
-- **tp_fun**: A collection of community novelty and admin commands, such as `!msg`, `!smile`, `!pentagram`, `!bury`/`!digup`, `!specplay`, `!drawline`, and various joke commands.
-- **untracked**: Detects players who are not trackable by QLStats and optionally prevents them from playing. Requires the **balance** plugin to be loaded (it reuses its `qlx_balanceUrl` endpoint).
+- **untracked**: Detects players who aren't trackable by QLStats and can stop them playing. Needs **balance** loaded for its `qlx_balanceUrl` endpoint.
   - `qlx_untrackedPlayerAction`: What to do with untrackable players. `0` = do nothing (only announce), `1` = prevent them from joining a team, `2` = block their connection entirely.
     - Default: `0`
 - **votecommands**: Adds `/pass` and `/veto` client commands (and `!pass`/`!veto`) so moderators (permission level 3) can force the current vote to pass or fail.
-- **votestats**: Shows who voted yes or no on the current vote and announces the final tally. Adds `!votes` to toggle these per-vote messages on or off for the calling player.
+- **votestats**: Shows who voted yes or no on the current vote and announces the final tally. Adds `!votes` to turn the per-vote messages on or off for the calling player.
   - `qlx_privatiseVotes`: A boolean determining whether individual "x voted y" messages are hidden (i.e. votes are private again).
     - Default: `0`
 - **vpnblock**: Blocks connections from known VPN/datacentre IP ranges (sourced from the [X4BNet datacentre list](https://github.com/X4BNet/lists_vpn)). Adds `!vpn <id>` to check whether a player is on a known VPN/datacentre IP, and `!bypassvpn <id>` to whitelist a player.
   - `qlx_blockVpnConnections`: A boolean determining whether connections from known VPN/datacentre IP ranges are blocked.
     - Default: `1`
+  - `qlx_vpnBlockRefreshHours`: How often, in hours, the block list is re-downloaded. The request is conditional on its `ETag`, so a refresh usually costs nothing.
+    - Default: `12`
 - **workshop**: A plugin that allows the use of custom workshop items that the server might not reference by default, and thus not have the client download them automatically.
   - `qlx_workshopReferences`: A comma-separated list of workshop IDs for items you want to force the client to download. Use this for custom resources; the referenced PK3's filesystem will be superimposed upon the `pak00.pk3` filesystem.

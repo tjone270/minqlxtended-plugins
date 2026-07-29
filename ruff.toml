@@ -1,0 +1,18 @@
+# Lint configuration for the plugins.
+#
+# Self-contained rather than extending minqlxtended's own ruff.toml. The plugins are cloned
+# into the server directory, not into the framework tree, so a relative path to it only
+# resolves for a developer who happens to have both side by side.
+#
+# The rules match the framework's, less the line-length check. Plugin code carries long
+# user-facing message strings, and 48 lines here run past the 140 the package holds to.
+
+target-version = "py312"
+
+[lint]
+# UP031/UP032 keep interpolation on f-strings. Neither fires on a logging call passing its
+# arguments separately, nor on .format() over a template held in a variable, which is what
+# the PLAYER_KEY/RATING_KEY constants are.
+select = ["E4", "E7", "E9", "F", "W", "UP031", "UP032"]
+
+ignore = ["E722"]

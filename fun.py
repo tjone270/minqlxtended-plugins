@@ -1,14 +1,15 @@
-# minqlx - A Quake Live server administrator bot.
+# minqlxtended - Extends Quake Live's dedicated server with extra functionality and scripting.
 # Copyright (C) 2015 Mino <mino@minomino.org>
+# Copyright (C) 2016-2026 Thomas Jones <me@thomasjones.id.au>
 
 # This file is part of minqlxtended.
 
-# minqlx is free software: you can redistribute it and/or modify
+# minqlxtended is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# minqlx is distributed in the hope that it will be useful,
+# minqlxtended is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -66,18 +67,14 @@ _re_snarl = re.compile(r"^snarl\W?$", flags=re.IGNORECASE)
 class fun(minqlxtended.Plugin):
     database = Redis
 
+    _qlx_funSoundDelay = minqlxtended.setting("qlx_funSoundDelay", 3)
+
     def __init__(self):
         super().__init__()
-        self.add_hook("chat", self.handle_chat)
-        self.add_command("cookies", self.cmd_cookies)
         self.last_sound = None
 
-        self.set_cvar_once("qlx_funSoundDelay", "3")
-
-        self._qlx_funSoundDelay = self.get_cvar("qlx_funSoundDelay", int)
-
-
-    def handle_chat(self, player, msg, channel):
+    @minqlxtended.hook("chat")
+    def handle_chat(self, player, msg, channel, recipient):
         if channel != "chat":
             return
 
@@ -174,14 +171,15 @@ class fun(minqlxtended.Plugin):
             return
 
         self.last_sound = time.time()
-        # Batch-read the sounds_enabled flag in a single round-trip instead of one per player.
+        # One MGET for the whole server. essentials.py owns the flag and the !sounds
+        # command that writes it; get_flags owns the key format.
         players = self.players()
-        keys = [f"minqlx:players:{p.steam_id}:flags:essentials:sounds_enabled" for p in players]
-        values = self.db.mget(keys) if keys else []
-        for p, v in zip(players, values):
-            if v is None or bool(int(v)):
+        enabled = self.db.get_flags(players, "essentials:sounds_enabled", default=True)
+        for p in players:
+            if enabled[p.steam_id]:
                 super().play_sound(path, p)
 
+    @minqlxtended.command("cookies")
     def cmd_cookies(self, player, msg, channel):
         """ Give the server some cookies? """
         x = random.randint(0, 100)

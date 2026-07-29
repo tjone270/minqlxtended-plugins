@@ -1,57 +1,68 @@
-# Created by Thomas Jones on 19/09/2016 - thomas@tomtecsolutions.com
-# votecommands.py - a minqlxtended plugin to add new /pass and /veto client commands for moderators.
+# minqlxtended - Extends Quake Live's dedicated server with extra functionality and scripting.
+# Copyright (C) 2016-2026 Thomas Jones <me@thomasjones.id.au>
 
-# Updated 31/07/2024 to make compatible with minqlxtended.
+# This file is part of minqlxtended.
+
+# minqlxtended is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# minqlxtended is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
+
+# votecommands.py - a minqlxtended plugin to add new /pass and /veto client commands for moderators.
 
 import minqlxtended
 
 class votecommands(minqlxtended.Plugin):
     def __init__(self):
         super().__init__()
-        self.add_hook("client_command", self.handle_client_command)
-
-        self.add_command(("pass", "veto"), self.cmd_force_vote, 2, priority=minqlxtended.PRI_HIGHEST)
-        self.plugin_version = "1.4"
 
         self._qlx_commandPrefix = self.get_cvar("qlx_commandPrefix")
 
+    @minqlxtended.hook("client_command")
     def handle_client_command(self, player, command):
         parts = command.lower().split()
         if not parts:
             return
         command = parts[0]
-        if command in ["pass", "veto", "yes", "no"]:
-            self.do_vote(player, (True if command in ["pass", "yes"] else False))
-            return minqlxtended.RET_STOP_ALL
+        # /yes and /no are the engine's own vote commands, and are left alone. Overloading
+        # them left a moderator no way to cast an ordinary vote without forcing it.
+        if command not in ("pass", "veto"):
+            return
 
+        self.do_vote(player, command == "pass")
+        return minqlxtended.Return.STOP_ALL
+
+    @minqlxtended.command(("pass", "veto"), permission=3, priority=minqlxtended.Priority.HIGHEST)
     def cmd_force_vote(self, player, msg, channel):
         """ Forces the current vote. """
-        command = msg[0].lower().replace(self._qlx_commandPrefix, "")
-        
-        action = False
-        if command in ("yes", "pass"):
-            action = True            
+        # Only registered as ("pass", "veto"), so anything that isn't a pass is a veto.
+        command = msg[0].lower().removeprefix(self._qlx_commandPrefix)
 
-        self.do_vote(player, action)
-        return minqlxtended.RET_STOP_ALL
+        self.do_vote(player, command == "pass")
+        return minqlxtended.Return.STOP_ALL
 
     def do_vote(self, player, action):
         if not self.is_vote_active():
             player.tell(f"There is no current vote to ^6{'pass' if action else 'veto'}^7.")
-            return minqlxtended.RET_STOP_ALL
+            return minqlxtended.Return.STOP_ALL
 
         if not self.db.has_permission(player.steam_id, 3):
             player.tell(f"You don't have permission to ^6{'pass' if action else 'veto'}^7 a vote.")
-            return minqlxtended.RET_STOP_ALL
+            return minqlxtended.Return.STOP_ALL
 
-        if action:
-            minqlxtended.force_vote(True)
-            word = "^2passed"
-        else:
-            minqlxtended.force_vote(False)
-            word = "^1vetoed"
+        if not minqlxtended.force_vote(action):
+            # Refused, the vote having gone away between the check above and here, or the
+            # match having ended and voteTime now belonging to the map vote.
+            player.tell(f"There is no current vote to ^6{'pass' if action else 'veto'}^7.")
+            return minqlxtended.Return.STOP_ALL
 
+        word = "^2passed" if action else "^1vetoed"
         self.msg(f"{player.name}^7 {word}^7 the vote.")
-       
-    def cmd_showversion(self, player, msg, channel):
-        channel.reply(f"^4votecommands.py^7 - version {self.plugin_version}, created by Thomas Jones on 19/09/2016.")
