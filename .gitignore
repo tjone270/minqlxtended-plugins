@@ -1,2 +1,7 @@
 *.pyc
 _*.py
+old-minqlx-plugins/
+
+# Plugins specific to The Purgery, or to how it is run. They live on the server, not here.
+tp_*.py
+thepurgery.py

@@ -1,14 +1,15 @@
-# minqlbot - A Quake Live server administrator bot.
+# minqlxtended - Extends Quake Live's dedicated server with extra functionality and scripting.
 # Copyright (C) 2015 Mino <mino@minomino.org>
+# Copyright (C) 2016-2026 Thomas Jones <me@thomasjones.id.au>
 
 # This file is part of minqlxtended.
 
-# minqlx is free software: you can redistribute it and/or modify
+# minqlxtended is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# minqlx is distributed in the hope that it will be useful,
+# minqlxtended is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -22,17 +23,11 @@
 import minqlxtended
 
 class raw(minqlxtended.Plugin):
-    def __init__(self):
-        super().__init__()
-        self.add_command(("exec", "pyexec"), self.cmd_exec, 5, client_cmd_pass=False, usage="<python_code>")
-        self.add_command(("eval", "pyeval"), self.cmd_eval, 5, client_cmd_pass=False, usage="<python_code>")
-        self.add_command(("db", "database"), self.cmd_db, 5, usage="<key> [value]")
-
-
+    @minqlxtended.command(("exec", "pyexec"), permission=5, client_cmd_pass=False, usage="<python_code>")
     def cmd_exec(self, player, msg, channel):
         """ 'exec' arbitrary Python code. """
         if len(msg) < 2:
-            return minqlxtended.RET_USAGE
+            return minqlxtended.Return.USAGE
         else:
             try:
                 exec(" ".join(msg[1:]))
@@ -40,10 +35,11 @@ class raw(minqlxtended.Plugin):
                 channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 raise
 
+    @minqlxtended.command(("eval", "pyeval"), permission=5, client_cmd_pass=False, usage="<python_code>")
     def cmd_eval(self, player, msg, channel):
         """ 'eval' arbitrary Python code. """
         if len(msg) < 2:
-            return minqlxtended.RET_USAGE
+            return minqlxtended.Return.USAGE
         else:
             try:
                 channel.reply(str(eval(" ".join(msg[1:]))))
@@ -51,11 +47,12 @@ class raw(minqlxtended.Plugin):
                 channel.reply(f"^1{e.__class__.__name__}^7: {e}")
                 raise
 
+    @minqlxtended.command(("db", "database"), permission=5, usage="<key> [value]")
     def cmd_db(self, player, msg, channel):
         """ Prints the value of a key in the database. """
         if len(msg) < 2:
-            return minqlxtended.RET_USAGE
-        
+            return minqlxtended.Return.USAGE
+
         try:
             if msg[1] not in self.db:
                 channel.reply("The key is not present in the database.")
@@ -71,7 +68,7 @@ class raw(minqlxtended.Plugin):
                     out = str(self.db.zrange(msg[1], 0, -1, withscores=True))
                 else:
                     out = str(self.db.hgetall(msg[1]))
-                
+
                 channel.reply(out)
         except Exception as e:
             channel.reply(f"^1{e.__class__.__name__}^7: {e}")
