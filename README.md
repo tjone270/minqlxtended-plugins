@@ -49,6 +49,8 @@ like you would with any other QLDS CVAR.
     - Default: `0`
   - `qlx_brandingAppendGameType`: A boolean determining whether the game type is appended after `qlx_serverBrandName`.
     - Default: `0`
+  - `qlx_brandingMapCredit`: A boolean determining whether the map's baked-in author credit is prepended to the top/bottom branding fields.
+    - Default: `1`
   - `qlx_rainbowBrandName`: A boolean determining whether `qlx_serverBrandName` is rendered in rotating rainbow colours.
     - Default: `0`
 - **clan**: Adds commands to let players have persistent clan tags without having to change the name on Steam.
