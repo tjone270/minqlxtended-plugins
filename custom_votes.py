@@ -487,22 +487,6 @@ class custom_votes(minqlxtended.Plugin):
 
         return self._limit_vote(caller, "roundtimelimit", args.strip().lower(), ["90", "120", "180"], "round time limit")
 
-    @minqlxtended.vote("balance", description="Balances the teams using the glicko algorithm.")
-    def vote_balance(self, caller, args):
-        if self.plugin("balance") is None:
-            caller.tell("The ^6balance^7 plug-in isn't currently loaded. This vote cannot function.")
-            return None
-
-        teams = self.teams()
-        if ((len(teams["red"]) + len(teams["blue"])) % 2 != 0) or ((len(teams["red"]) + len(teams["blue"])) == 0):
-            caller.tell("Voting to balance isn't possible while the number of players across both teams is uneven.")
-            caller.tell(
-                f"There are ^1{len(teams['red'])}^7 player{'s' if len(teams['red']) != 1 else ''} on red, and ^4{len(teams['blue'])}^7 player{'s' if len(teams['blue']) != 1 else ''} on blue."
-            )
-            return None
-
-        return minqlxtended.CustomVote("balance the teams", self._start_balance)
-
     @minqlxtended.vote("lgammo", usage="[150/200]", description="Change starting lightning gun ammo.")
     def vote_lgammo(self, caller, args):
         if self.game.state != minqlxtended.GameState.WARMUP:
@@ -591,32 +575,6 @@ class custom_votes(minqlxtended.Plugin):
         return minqlxtended.CustomVote(f"Server CVAR change: {raw_args}^3",
                                        f'set {name} "{match.group("value")}"')
 
-    @minqlxtended.vote("do", usage="[now/later]", description="Forces the suggested switch now, or at the start of the next round.")
-    def vote_do(self, caller, args):
-        args = args.strip().lower()
-        if len(args) <= 1:
-            caller.tell("Please use one of the following options:")
-            caller.tell("  ^2/cv do later^7 forces the switch at the beginning of the next round.")
-            caller.tell("  ^2/cv do now^7 forces the switch at the end of the vote.")
-            return None
-
-        balance = self.plugin("balance")
-        if balance is None:
-            caller.tell("The ^6balance^7 plug-in isn't currently loaded. This vote cannot function.")
-            return None
-
-        if not balance.suggested_pair:
-            caller.tell("A switch hasn't been suggested yet by ^6!teams^7, a suggestion is required before ^2do^7 can execute.")
-            return None
-
-        if args == "now":
-            return minqlxtended.CustomVote("force the suggested switch now", self._execute_do_now)
-        if args == "later":
-            return minqlxtended.CustomVote("force the suggested switch at the start of the next round", self._execute_do_later)
-
-        caller.tell("You have specified an invalid argument, either ^2now^7 or ^2later^7 are accepted arguments.")
-        return None
-
     @minqlxtended.vote("reboot", description="Restarts the Quake server (takes 5 seconds).")
     def vote_reboot(self, caller, args):
         if self._qlx_disableServerRebootVote:
@@ -624,22 +582,6 @@ class custom_votes(minqlxtended.Plugin):
             return None
 
         return minqlxtended.CustomVote("reboot the ^1QUAKE LIVE^3 server", self._begin_reboot)
-
-    @minqlxtended.vote("go", description="Balances and begins the game.")
-    def vote_go(self, caller, args):
-        if self.game.state != minqlxtended.GameState.WARMUP:
-            caller.tell("Voting to go is not permitted during an active game.")
-            return None
-
-        responses = [
-            "let's get a move on already",
-            "let's get going",
-            "don't be a scrote, let's get on with it",
-            "are we playing or what?",
-            "you layabouts, let's get on with it!",
-            "F3 dudes",
-        ]
-        return minqlxtended.CustomVote(random.choice(responses), self._execute_go)
 
     @minqlxtended.vote("servershift", usage="<1-32>", description="Shifts all players to the specified server number.")
     def vote_servershift(self, caller, args):
@@ -755,30 +697,3 @@ class custom_votes(minqlxtended.Plugin):
                 minqlxtended.unload_plugin(plugin_name)
         except Exception:
             self.logger.exception(f"Failed to {'load' if loaded else 'unload'} the {plugin_name} plugin.")
-
-    def _start_balance(self):
-        if self.plugin("balance") is None:
-            self.msg("The ^6balance^7 plug-in is no longer loaded, so the teams were not balanced.")
-            return
-
-        minqlxtended.console_command("qlx !balance")
-
-    def _execute_do_now(self):
-        balance = self.plugin("balance")
-        if balance is not None and balance.suggested_pair:
-            balance.execute_suggestion()
-
-    def _execute_do_later(self):
-        balance = self.plugin("balance")
-        if balance is None or balance.suggested_pair is None:
-            return
-
-        balance.suggested_agree[0] = True
-        balance.suggested_agree[1] = True
-        self.msg("The switch will occur at the beginning of the next round.")
-
-    def _execute_go(self):
-        self._start_balance()
-        game = self.game
-        if game is not None and game.state == minqlxtended.GameState.WARMUP:
-            game.allready()

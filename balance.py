@@ -653,6 +653,80 @@ class balance(minqlxtended.Plugin):
         self.game.shuffle()
         return self.cmd_balance(player, msg, channel)
 
+    @minqlxtended.vote("balance", description="Balances the teams using the glicko algorithm.")
+    def vote_balance(self, caller, args):
+        teams = self.teams()
+        if ((len(teams["red"]) + len(teams["blue"])) % 2 != 0) or ((len(teams["red"]) + len(teams["blue"])) == 0):
+            caller.tell("Voting to balance isn't possible while the number of players across both teams is uneven.")
+            caller.tell(
+                f"There are ^1{len(teams['red'])}^7 player{'s' if len(teams['red']) != 1 else ''} on red, and ^4{len(teams['blue'])}^7 player{'s' if len(teams['blue']) != 1 else ''} on blue."
+            )
+            return None
+
+        return minqlxtended.CustomVote("balance the teams", self._start_balance)
+
+    @minqlxtended.vote("do", usage="[now/later]", description="Forces the suggested switch now, or at the start of the next round.")
+    def vote_do(self, caller, args):
+        args = args.strip().lower()
+        if len(args) <= 1:
+            caller.tell("Please use one of the following options:")
+            caller.tell("  ^2/cv do later^7 forces the switch at the beginning of the next round.")
+            caller.tell("  ^2/cv do now^7 forces the switch at the end of the vote.")
+            return None
+
+        if not self.suggested_pair:
+            caller.tell("A switch hasn't been suggested yet by ^6!teams^7, a suggestion is required before ^2do^7 can execute.")
+            return None
+
+        if args == "now":
+            return minqlxtended.CustomVote("force the suggested switch now", self._execute_do_now)
+        if args == "later":
+            return minqlxtended.CustomVote("force the suggested switch at the start of the next round", self._execute_do_later)
+
+        caller.tell("You have specified an invalid argument, either ^2now^7 or ^2later^7 are accepted arguments.")
+        return None
+
+    @minqlxtended.vote("go", description="Balances and begins the game.")
+    def vote_go(self, caller, args):
+        if self.game.state != minqlxtended.GameState.WARMUP:
+            caller.tell("Voting to go is not permitted during an active game.")
+            return None
+
+        return minqlxtended.CustomVote("balance the teams and begin the game", self._execute_go)
+
+    def _start_balance(self):
+        """Balance the full teams to chat. Runs when /cv balance or /cv go passes."""
+        gt = self.game.type_short
+        if gt not in SUPPORTED_GAMETYPES:
+            self.msg("This game mode is not supported by the balance plugin.")
+            return
+
+        teams = self.teams()
+        if len(teams["red"] + teams["blue"]) % 2 != 0:
+            self.msg("The teams were not balanced; the total number of players is no longer even.")
+            return
+
+        players = dict([(p.steam_id, gt) for p in teams["red"] + teams["blue"]])
+        self.add_request(players, self.callback_balance, minqlxtended.CHAT_CHANNEL)
+
+    def _execute_do_now(self):
+        if self.suggested_pair:
+            self.execute_suggestion()
+
+    def _execute_do_later(self):
+        if self.suggested_pair is None:
+            return
+
+        self.suggested_agree[0] = True
+        self.suggested_agree[1] = True
+        self.msg("The switch will occur at the beginning of the next round.")
+
+    def _execute_go(self):
+        self._start_balance()
+        game = self.game
+        if game is not None and game.state == minqlxtended.GameState.WARMUP:
+            game.allready()
+
     def suggest_switch(self, teams, gametype):
         """Suggest a switch based on average team ratings.
 
