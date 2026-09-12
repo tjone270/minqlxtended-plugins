@@ -351,7 +351,6 @@ class leaverban(minqlxtended.Plugin):
         return True
 
     # HELPERS
-
     _MARKDOWN_ESCAPE = "\\`*_~|[]()>#-"
 
     @classmethod
@@ -405,7 +404,6 @@ class leaverban(minqlxtended.Plugin):
 
         db.zadd(key, {f"leave_{current_timestamp}": current_timestamp})
         self.logger.info(f"Recorded leave for player {player.clean_name} (Steam ID: {player.steam_id}).")
-
         db.zremrangebyscore(key, 0, cutoff_timestamp - 86400)
 
         db.expire(key, 60 * 60 * 24 * self._qlx_leaverBanRollingWindowDays + 86400) # +1 day to ensure we don't expire leaves from the current day
@@ -481,7 +479,6 @@ class leaverban(minqlxtended.Plugin):
         cutoff_timestamp = current_timestamp - (self._qlx_leaverBanRollingWindowDays * 24 * 60 * 60)
 
         leaves_in_window = self.db.zrangebyscore(key, cutoff_timestamp, current_timestamp, withscores=True)
-
         current_leave_count = len(leaves_in_window)
 
         result = {
@@ -498,10 +495,8 @@ class leaverban(minqlxtended.Plugin):
 
         if is_banned:
             newest_leave_timestamp = leaves_in_window[-1][1]
-
             leaves_over_threshold = current_leave_count - self._qlx_leaverBanMaxLeaves + 1
             ban_duration_hours = 24 * leaves_over_threshold
-
             unban_timestamp = newest_leave_timestamp + (ban_duration_hours * 60 * 60)
 
             if unban_timestamp <= current_timestamp:
@@ -551,6 +546,7 @@ class leaverban(minqlxtended.Plugin):
         leaves_until_ban = self._qlx_leaverBanMaxLeaves - leave_count
         if leaves_until_ban > 0:
             player.tell(f"^7You will be banned if you leave ^6{leaves_until_ban}^7 more game{'s' if leaves_until_ban != 1 else ''}.")
+            return
 
         player.tell("^7If you keep leaving you ^6will^7 be banned.\n")
 
