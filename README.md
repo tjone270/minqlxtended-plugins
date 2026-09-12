@@ -66,7 +66,9 @@ like you would with any other QLDS CVAR.
   - `qlx_glasshouse`: Kicks the caller of a `kick`, `clientkick` or `tempban` vote that fails, which discourages frivolous ones. Permission level 1 and above are exempt. This was the standalone **glasshouse** plugin.
     - Default: `1`
 - **dictionary**: Adds `!define <term>` to look up Urban Dictionary definitions in-game.
-- **docs**: A plugin that generates a command list of all the plugins currently loaded, in the form of a Markdown file.
+- **docs**: Adds `!gendocs [excluded_plugins]` to write a command list of the loaded plugins into `fs_basepath`, grouped by permission level.
+  - `qlx_docsFormat`: The output format: `markdown` for a wiki page, or `twig` or `jinja` for HTML with template conditionals that hide the commands a visitor cannot run.
+    - Default: `markdown`
 - **essentials**: Adds commands for the regular QLDS commands and some more. Adds functionality to restrict teamsize voting and to pass votes before it fails if the majority votes yes.
   - `qlx_votepass`: A boolean deciding whether or not it should automatically pass votes before they fail if the majority voted yes.
     - Default: `1`

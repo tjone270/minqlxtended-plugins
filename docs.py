@@ -23,17 +23,55 @@ from os import linesep
 from datetime import datetime
 from html import escape
 
-class docs(minqlxtended.Plugin):
-    @minqlxtended.command("gendocs", permission=5, usage="[excluded_plugins]")
-    def cmd_gendocs(self, players, msg, channel):
-        """Generate a command list based on currently loaded plugins in HTML with Twig filtering."""
-        if len(msg) > 1:
-            excluded = [s.lower() for s in msg[1:]]
-        else:
-            excluded = []
+FORMATS = {
+    "markdown": "command_list.md",
+    "twig": "command_list.twig",
+    "jinja": "command_list.jinja",
+}
 
+TEMPLATE_FLAVOURS = {
+    "twig": {"macros": "macros.tmpl", "badge": "permissionBadge", "level": "permissionLevel"},
+    "jinja": {"macros": "macros.html", "badge": "permission_badge", "level": "permission_level"},
+}
+
+MARKDOWN_PREAMBLE = (
+    "### Commands\n"
+    "The command system is based on permission levels. A player will have a permission level\n"
+    "of **0** by default. A player with level **1** can execute commands for level **1** and\n"
+    "below. A level **2** player can execute level **2**, **1** and **0** commands, and so on.\n"
+    "\n\n"
+)
+
+class docs(minqlxtended.Plugin):
+    _qlx_docsFormat = minqlxtended.setting("qlx_docsFormat", "markdown")
+
+    @minqlxtended.command("gendocs", permission=5, usage="[excluded_plugins]")
+    def cmd_gendocs(self, player, msg, channel):
+        """Generate a command list based on currently loaded plugins, as Markdown, Twig or Jinja."""
+        wanted = self._qlx_docsFormat.lower()
+        filename = FORMATS.get(wanted)
+        if filename is None:
+            channel.reply(f"^1qlx_docsFormat^7 is ^3{self._qlx_docsFormat}^7; it has to be one of ^6{', '.join(sorted(FORMATS))}^7.")
+            return
+
+        excluded = [name.lower() for name in msg[1:]] if len(msg) > 1 else []
         prefix = self.get_cvar("qlx_commandPrefix")
-        cmds = {}
+        commands = self.collect_commands(excluded)
+
+        flavour = TEMPLATE_FLAVOURS.get(wanted)
+        if flavour:
+            out = self.render_template(commands, prefix, flavour)
+        else:
+            out = self.render_markdown(commands, prefix)
+
+        with open(os.path.join(self.get_cvar("fs_basepath"), filename), "w") as handle:
+            handle.write(out)
+
+        channel.reply(f"^7Command list generated as ^6{filename}^7!")
+
+    def collect_commands(self, excluded):
+        """Every registered command, grouped by the permission level it needs."""
+        commands = {}
         for cmd in minqlxtended.COMMANDS.commands:
             if cmd.plugin.__class__.__name__ in excluded:  # Skip excluded plugins.
                 continue
@@ -43,29 +81,33 @@ class docs(minqlxtended.Plugin):
             if override:
                 permission = cmd._permission_cvar("qlx_perm_" + cmd.name, override, cmd.permission)
 
-            if permission not in cmds:
-                cmds[permission] = [cmd]
-            else:
-                cmds[permission].append(cmd)
+            commands.setdefault(permission, []).append(cmd)
 
-        out = '{% from "macros.tmpl" import permissionBadge %}\n'
+        return commands
+
+    def command_name(self, cmd, prefix):
+        """The command as a player types it, and its aliases the same way."""
+        name = prefix + cmd.name if cmd.prefix else cmd.name
+        aliases = [prefix + alias if cmd.prefix else alias for alias in cmd.aliases]
+        return name, aliases
+
+    def render_template(self, commands, prefix, flavour):
+        """HTML with template conditionals, so a visitor only sees the commands they can run."""
+        macros, badge, level = flavour["macros"], flavour["badge"], flavour["level"]
+        out = f'{{% from "{macros}" import {badge} %}}\n'
         out += f"<p><small><em>Last updated:</em> {datetime.now().replace(microsecond=0)}</small></p>\n"
-        for perm in sorted(cmds.keys()):
+        for perm in sorted(commands):
             if perm:
-                out += f"{{% if permissionLevel >= {perm} %}}\n"
+                out += f"{{% if {level} >= {perm} %}}\n"
 
-            out += f"<h3>Permission level <strong>{perm}</strong>: {{{{ permissionBadge({perm}) }}}}</h3>\n"
+            out += f"<h3>Permission level <strong>{perm}</strong>: {{{{ {badge}({perm}) }}}}</h3>\n"
             out += "<ul>\n"
-            for cmd in sorted(cmds[perm], key=lambda x: x.plugin.__class__.__name__):
+            for cmd in sorted(commands[perm], key=lambda x: x.plugin.__class__.__name__):
+                name, aliases = self.command_name(cmd, prefix)
                 out += "  <li>\n"
-                name = prefix + cmd.name if cmd.prefix else cmd.name
                 out += f"    <code>{name}</code>"
-                if cmd.aliases:
-                    out += " (alternatively "
-                    for alias in cmd.aliases:
-                        name_alias = prefix + alias if cmd.prefix else alias
-                        out += f"<code>{name_alias}</code>, "
-                    out = out[:-2] + ")"
+                if aliases:
+                    out += " (alternatively " + ", ".join(f"<code>{alias}</code>" for alias in aliases) + ")"
                 out += f" from plug-in <em>{cmd.plugin.__class__.__name__}</em>.\n"
 
                 # Docstring.
@@ -83,8 +125,28 @@ class docs(minqlxtended.Plugin):
                 out += "{% endif %}\n"
 
         out += f'<em>Automatically generated by <a href="https://github.com/tjone270/minqlxtended">minqlxtended {minqlxtended.__version__} (with plug-ins {minqlxtended.plugins_version()}.)</a></em>'
+        return out
 
-        with open(os.path.join(self.get_cvar("fs_basepath"), "command_list.twig"), "w") as f:
-            f.write(out)
+    def render_markdown(self, commands, prefix):
+        """Markdown, for a wiki page or a README."""
+        out = MARKDOWN_PREAMBLE
+        out += f"*Last updated: {datetime.now().replace(microsecond=0)}*\n\n"
+        for perm in sorted(commands):
+            out += f"*   Permission level **{perm}**\n\n"
+            for cmd in sorted(commands[perm], key=lambda x: x.plugin.__class__.__name__):
+                name, aliases = self.command_name(cmd, prefix)
+                out += f"    *   **`{name}`**"
+                if aliases:
+                    out += " (alternatively " + ", ".join(f"`{alias}`" for alias in aliases) + ")"
+                out += f" from *{cmd.plugin.__class__.__name__}*\n\n"
 
-        channel.reply("^7Command list generated!")
+                if cmd.handler.__doc__:
+                    docstring = " ".join(cmd.handler.__doc__.split())
+                    out += f"        {docstring}\n\n"
+
+                # Usage
+                if cmd.usage:
+                    out += f"        *Usage*: `{name} {cmd.usage.strip()}`\n\n"
+
+        out += f"*Automatically generated by [minqlxtended {minqlxtended.__version__} (with plug-ins {minqlxtended.plugins_version()})](https://github.com/tjone270/minqlxtended)*"
+        return out
