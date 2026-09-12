@@ -145,9 +145,8 @@ class custom_votes(minqlxtended.Plugin):
         """Point one client at another server by overriding activeAction in its view of
         CS_SYSTEMINFO.
 
-        send_player_configstring merges the key into the client's existing systeminfo
-        and quotes the value, which contains spaces the client would otherwise tokenise.
-
+        send_player_configstring merges the key into the client's systeminfo and quotes
+        the value, since it holds spaces the client would otherwise tokenise.
         """
         return self.send_player_configstring(
             client_id, minqlxtended.CS_SYSTEMINFO,
@@ -252,9 +251,9 @@ class custom_votes(minqlxtended.Plugin):
 
     @minqlxtended.hook("vote_called")
     def handle_vote_called(self, caller, vote, args):
-        """The policy gates every vote passes through, engine built-ins and registered
-        custom votes alike: this hook runs before CUSTOM_VOTES gets its turn, and a
-        veto here reaches both.
+        """Vote policy for engine built-ins and registered custom votes alike.
+
+        This hook runs before CUSTOM_VOTES gets its turn, so a veto here stops both.
         """
         vote = vote.lower().strip()
 

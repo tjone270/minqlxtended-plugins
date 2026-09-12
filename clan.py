@@ -43,8 +43,7 @@ class clan(minqlxtended.Plugin):
     def set_prefix(self, client_id, prefix):
         """Prepend *prefix* to this player's clan tag, e.g. a queue position.
 
-        Dirty-checked. Returns True if the displayed tag changed and a
-        configstring write was issued.
+        Dirty-checked. Returns True if the tag changed and a configstring was written.
         """
         prefix = prefix or ""
         if self._prefixes.get(client_id, "") == prefix:
@@ -69,8 +68,8 @@ class clan(minqlxtended.Plugin):
     def refresh(self, client_id):
         """Rewrite this player's configstring so the composed tag is applied.
 
-        Player.clan's setter is dirty-checked, so assigning the same value back is a
-        no-op and never reaches the dispatchers. Writing the configstring does.
+        Player.clan's setter is dirty-checked, so assigning the same value back does
+        nothing. Writing the configstring does.
         """
         index = minqlxtended.CS_PLAYERS + client_id
         current = minqlxtended.configstring(index)

@@ -30,17 +30,16 @@ ROUTE_TABLE = "/proc/net/route"
 def _route_address(field):
     """One of /proc/net/route's hex address columns as an IPv4Address.
 
-    The kernel prints a host-order u32, so on x86-64 the bytes come out reversed and have
-    to be read back to front: "013014AC" is 172.20.48.1.
+    The kernel prints a host-order u32, so on x86-64 the bytes read back to front:
+    "013014AC" is 172.20.48.1.
     """
     return ipaddress.IPv4Address(struct.pack("<I", int(field, 16)))
 
 def parse_routes(text, interface=""):
     """Work out the default gateway and the directly-connected subnets.
 
-    Takes the *contents* of /proc/net/route rather than a path, so it can be run
-    against a captured table. Returns ``(router, networks)``, either of which may be
-    empty. Treat "found nothing" as an ordinary outcome.
+    Takes the *contents* of /proc/net/route, so it can run against a captured table.
+    Returns ``(router, networks)``, either of which may be empty.
     """
     gateways = []
     networks = []
@@ -96,17 +95,10 @@ class lan(minqlxtended.Plugin):
     """Tells LAN players when they are reaching the server the long way round.
 
     A player whose source address *is* the router has hairpinned out through NAT and
-    back: they're on the LAN, but their traffic goes out to the internet and comes
-    back, costing them latency for nothing. Anyone else inside a local subnet is
-    connected directly.
-
-    The LAN's shape is read from the kernel routing table, so nothing needs configuring
-    on an ordinary host install. Every cvar below is an override for when that guess is
-    wrong, most usefully when the server runs inside a container or a network namespace,
-    where the routing table describes the container's network rather than the real one.
-
-    Everything here fails open. A server that can't work out its own network lets
-    everybody in rather than locking everybody out.
+    back, so they sit on the LAN but pay internet latency. Anyone else inside a local
+    subnet is connected directly. The subnets come from the kernel routing table; the
+    cvars below override it for a container, where that table describes the container's
+    network. Everything here fails open.
     """
 
     _qlx_lanPlayersOnly = minqlxtended.setting("qlx_lanPlayersOnly", False)
@@ -179,9 +171,8 @@ class lan(minqlxtended.Plugin):
     def _address_of(self, player):
         """The player's address, or None if there isn't one to read.
 
-        Player.ip is built from netadr_t.ip[4] as a dotted quad, so it's never a
-        hostname and never IPv6; the engine has no v6 address type. The only thing
-        that reaches the except is a dummy player, whose ip is "".
+        Player.ip is a dotted quad built from netadr_t.ip[4], so it is always IPv4.
+        Only a dummy player, whose ip is "", reaches the except.
         """
         try:
             return ipaddress.IPv4Address(player.ip)

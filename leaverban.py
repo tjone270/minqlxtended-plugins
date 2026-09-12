@@ -314,11 +314,10 @@ class leaverban(minqlxtended.Plugin):
     def describe_leaver_status(self, steam_id, name, channel):
         """Report a player's leaver status on *channel*.
 
-        Also called by ban.py's !checkban, so the leaver half of that report stays
-        in the plugin that owns the data rather than being reimplemented there.
+        ban.py's !checkban calls this too, so the leaver half of that report lives here
+        beside the data.
 
-        :returns: bool -- False if there was nothing to say, so the caller can fall
-            back to its own "not banned" message.
+        :returns: bool -- False if there was nothing to say.
         """
         if not self._qlx_leaverBan:
             return False
@@ -383,12 +382,11 @@ class leaverban(minqlxtended.Plugin):
             self.logger.exception("Failed to send Discord notification.")
 
     def queue_player_leave(self, db, player):
-        """Queue this player's leave onto an already-open pipeline.
+        """Queue this player's leave onto an open pipeline, returning whether it wrote.
 
-        Split from the judgement below so handle_game_end can batch every leaver's writes
-        into one round-trip. The two can't share one pipeline end to end, since
-        finish_player_leave reads back the very set this writes. Returns whether anything
-        was queued.
+        Split from the judgement below so handle_game_end batches every leaver's writes
+        into one round-trip. They cannot share one pipeline end to end, since
+        finish_player_leave reads back the set this writes.
         """
         if player.is_bot:
             return False
@@ -561,8 +559,8 @@ class leaverban(minqlxtended.Plugin):
         """Sizes of *team* and its opposite once *player* is off *team*.
 
         player_disconnect fires ahead of SV_DropClient, so self.teams() still counts the
-        leaver; team_switch fires after the move and doesn't. Discounting the player when
-        they're still listed gives both callers the same numbers to judge.
+        leaver; team_switch fires after the move. Discounting them when still listed
+        gives both callers the same numbers.
         """
         teams = self.teams()
         opposing = minqlxtended.Team.BLUE if team == minqlxtended.Team.RED else minqlxtended.Team.RED

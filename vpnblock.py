@@ -35,11 +35,9 @@ MAX_ANNOUNCED = 512
 def _build_intervals(cidrs):
     """Turn CIDR strings into sorted, merged [start, end] integer ranges.
 
-    The list holds around 100,000 networks. Walking them and asking `address in
-    network` is ~100,000 Python-level comparisons per connecting player, on the game
-    thread inside player_connect, which is tens of milliseconds, i.e. several whole
-    frames. Merged intervals plus a bisect answer the same question in ~17
-    comparisons, and hold two int arrays instead of 100,000 IPv4Network objects.
+    The list holds around 100,000 networks. Testing `address in network` over all of
+    them costs several whole frames on the game thread inside player_connect. Merged
+    intervals plus a bisect answer the same question in ~17 comparisons.
     """
     ranges = []
     for line in cidrs:

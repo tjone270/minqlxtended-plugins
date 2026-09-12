@@ -92,10 +92,9 @@ class queue(minqlxtended.Plugin):
     def pushFromQueue(self, delay=0):
         """Debounced request to fill/even teams from the queue.
 
-        Each requested delay matters: handle_vote_ended asks for 4 seconds because the
-        engine applies a passed vote about 3 seconds after vote_ended, and a push before
-        then reads the old teamsize. A request folds into a pending run only when that run
-        fires at about the same time; otherwise it arms its own.
+        The delay matters: handle_vote_ended asks for 4 seconds because the engine
+        applies a passed vote about 3 seconds later, and an earlier push reads the old
+        teamsize. A request folds into a pending run that fires at about the same time.
         """
         deadline = time.time() + (delay if delay and delay > 0 else 0)
         for pending in self._push_pending:
@@ -169,9 +168,9 @@ class queue(minqlxtended.Plugin):
     def _live_state(self, player):
         """The queued player's connection state read fresh, or None once they are gone.
 
-        Queue entries are Player objects captured when the player joined the queue, and a
-        Player's snapshot is frozen until update() replaces it. Reading connection_state off
-        an unrefreshed entry reports whatever it was at queue time.
+        Queue entries are Player objects captured at join time, and a Player's snapshot
+        is frozen until update() replaces it, so reading connection_state off an
+        unrefreshed entry reports queue-time data.
         """
         try:
             player.update()
@@ -182,8 +181,8 @@ class queue(minqlxtended.Plugin):
     def _push_to_team(self, amount, team):
         """Move up to `amount` front-of-queue, ACTIVE spectators onto `team`.
 
-        Disconnected/zombie entries are dropped; still-loading (connected/primed) entries
-        are kept in place. Returns True if at least one player was placed.
+        Drops disconnected and zombie entries, keeps still-loading ones in place, and
+        returns True if at least one player was placed.
         """
         if self.is_endscreen:
             return False
@@ -264,8 +263,8 @@ class queue(minqlxtended.Plugin):
     def updTag(self, player=None):
         """Request a tag refresh.
 
-        Every call site just marks the tags dirty. One coalesced pass per frame does a
-        single scan and writes only for the players whose tag changed.
+        Every call site just marks the tags dirty. One coalesced pass per frame scans
+        once and writes only for the players whose tag changed.
         """
         self._mark_tags_dirty()
 
@@ -331,12 +330,10 @@ class queue(minqlxtended.Plugin):
     def _apply_tags_standalone(self, changed):
         """Fallback composer for when clan.py isn't loaded.
 
-        clan.py is the sole writer of cn/xcn whenever it's loaded; two handlers writing the
-        pair puts two pairs in the configstring, and which one a reader honours is anyone's
-        guess.
-
-        Runs on the game thread, so the whole pass is held to two Redis round-trips: one
-        MGET for the no-clantag flags, one for the stored tags.
+        clan.py writes cn/xcn whenever it is loaded, and two handlers writing the pair
+        put two pairs in the configstring for a reader to pick between. Runs on the game
+        thread, so the pass is held to two Redis round-trips: one MGET for the
+        no-clantag flags, one for the stored tags.
         """
         flags = self.db.get_flags([p for p, _ in changed], NO_CLANTAG_FLAG_NAME)
         clan_tags = self.db.mget([_tag_key.format(p.steam_id) for p, _ in changed])

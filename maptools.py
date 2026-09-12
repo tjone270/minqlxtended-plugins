@@ -16,11 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with minqlxtended. If not, see <http://www.gnu.org/licenses/>.
 
-"""Player-facing views over the installed-map scan, plus a spawn-point visualiser.
+"""Player-facing commands over the installed-map scan, plus a spawn-point visualiser.
 
-!mapinfo and !factories read pk3 data (minqlxtended.map_info / .factories), so their
-handlers validate on the game thread and do the disk work on an inner @thread worker.
-!spawnvis is pure entity surgery and stays on the game thread throughout.
+!mapinfo and !factories read pk3 data through minqlxtended.map_info and .factories, so
+they validate on the game thread and do the disk work on an inner @thread worker.
+!spawnvis stays on the game thread.
 """
 
 import minqlxtended

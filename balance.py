@@ -324,8 +324,7 @@ class balance(minqlxtended.Plugin):
         """The cached rating for a player, or the default when the cache has none.
 
         handle_new_game empties self.ratings and clean_player_data pops from it, and
-        either can land between a fetch and the callback it feeds. A missing entry
-        degrades to the default rather than raising out of the frame task.
+        either can land between a fetch and the callback it feeds.
         """
         try:
             return self.ratings[steam_id][gametype]["elo"]
@@ -730,13 +729,9 @@ class balance(minqlxtended.Plugin):
     def suggest_switch(self, teams, gametype):
         """Suggest a switch based on average team ratings.
 
-        Called in a loop from the balance paths, on the game thread, at every round
-        countdown. Swapping one player for another only moves two ratings between the
-        sums, so the difference a candidate pair would leave is
-
-            |(R - a + b)/nr - (B - b + a)/nb|
-
-        over sums computed once.
+        Runs on the game thread at every round countdown. Swapping a pair moves two
+        ratings between the sums, so the difference it leaves is
+        |(R - a + b)/nr - (B - b + a)/nb| over sums computed once.
         """
         red = teams["red"]
         blue = teams["blue"]
