@@ -33,15 +33,15 @@ class aliases(minqlxtended.Plugin):
 
         resolved = self.resolve_identifier(msg[1], channel)
         if resolved is None:
-            return minqlxtended.Return.STOP_ALL
+            return
         steam_id, player_name, target_player = resolved
 
         if target_player is not None and target_player.is_bot:
             channel.reply("Bots do not have aliases!")
-            return minqlxtended.Return.STOP_ALL
+            return
 
         self._lookup_aliases(player.name, msg[0], steam_id, player_name, channel)
-        return minqlxtended.Return.STOP_ALL
+        return
 
     @minqlxtended.thread
     def _lookup_aliases(self, caller_name, command, steam_id, player_name, channel):
