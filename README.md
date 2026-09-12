@@ -29,7 +29,7 @@ like you would with any other QLDS CVAR.
   - `qlx_balanceApi`: The endpoint to use for ratings calls.
     - Default: `elo`
     - Alternative: `elo_b`
-- **ban**: Adds commands to ban people for a set amount of time (`!ban`, `!unban`, `!checkban`). Leaver tracking now lives in **leaverban**, and `!checkban` asks it for the leaver half when it's loaded. No CVARs.
+- **ban**: Adds commands to ban people for a set amount of time (`!ban`, `!unban`, `!checkban`). `!checkban` asks **leaverban** for the leaver half when it is loaded. No CVARs.
 - **branding**: Overrides the map loading screen text and prints your own messages on connect, load, countdown and game end. Set only the CVARs you want; anything left unset isn't shown at all.
   - `qlx_serverBrandName`: Text shown in place of the map name on the loading screen.
     - Default: unset
@@ -63,7 +63,7 @@ like you would with any other QLDS CVAR.
     - Default: `0`
   - `qlx_cvarVotePermissionRequired`: The permission level required to call a CVAR vote.
     - Default: `4`
-  - `qlx_glasshouse`: Kicks the caller of a `kick`, `clientkick` or `tempban` vote that fails, which discourages frivolous ones. Permission level 1 and above are exempt. This was the standalone **glasshouse** plugin.
+  - `qlx_glasshouse`: Kicks the caller of a failed `kick`, `clientkick` or `tempban` vote. Permission level 1 and above are exempt.
     - Default: `1`
 - **dictionary**: Adds `!define <term>` to look up Urban Dictionary definitions in-game.
 - **docs**: Adds `!gendocs [excluded_plugins]` to write a command list of the loaded plugins into `fs_basepath`, grouped by permission level.
